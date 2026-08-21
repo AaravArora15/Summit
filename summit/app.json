@@ -1,0 +1,89 @@
+{
+  "expo": {
+    "name": "Summit",
+    "slug": "summit",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "summit",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.summit.app",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "location"
+        ],
+        "NSLocationWhenInUseUsageDescription": "Summit uses your location to show trails and places near you, and to record a trek while you walk it.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Summit records your trek in the background so you can put your phone away and still get credit for the walk, and so it can tell you when a secret spot is nearby.",
+        "NSCameraUsageDescription": "Photograph a secret spot to prove you found it.",
+        "NSPhotoLibraryUsageDescription": "Attach a photo to a place you have claimed."
+      }
+    },
+    "android": {
+      "package": "com.summit.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#1F3D2E",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router",
+      "expo-dev-client",
+      "expo-sqlite",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "isAndroidBackgroundLocationEnabled": true,
+          "isIosBackgroundLocationEnabled": true,
+          "locationWhenInUsePermission": "Summit uses your location to show trails and places near you.",
+          "locationAlwaysAndWhenInUsePermission": "Summit records your trek in the background so you can put your phone away and still get credit for the walk."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Attach a photo to a place you have claimed.",
+        "cameraPermission": "Secret spots need a photo taken on the spot as proof you found them."
+      }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F7F7F5",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#1F3D2E",
+          "defaultChannel": "secret-spots"
+        }
+      ],
+      "@maplibre/maplibre-react-native"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro"
+    }
+  }
+}

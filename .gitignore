@@ -1,0 +1,22 @@
+# Secrets. Never commit these. (supabase/.env.deploy also has its own
+# .gitignore inside supabase/; listed again here as a second line of defence.)
+.supabasecreds.txt
+supabase/.env.deploy
+.env
+.env.*.local
+!.env.example
+
+# summit/ (the Expo app) has its own .gitignore for node_modules, .expo/,
+# dist/, native folders, etc. — nothing to duplicate here.
+
+# macOS
+.DS_Store
+
+# Editor swap/backup files
+*.swp
+*~
+
+# Ad-hoc reference screenshots/photos dropped at the repo root for AI
+# review — not design assets the app or mockups reference.
+/Screenshot *.png
+/WhatsApp Image*.jpeg
