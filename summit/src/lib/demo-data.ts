@@ -5,191 +5,213 @@
  * backend. Every row matches the shape returned by `locations_near()` exactly,
  * which means the switch to live data is a change of source and nothing else.
  *
- * These are real places in Singapore with real coordinates, so the map, the
- * distances, and the sets all line up with somewhere you could actually walk.
- * The pioneer counts are invented.
+ * DEMO_LOCATIONS are real places with real coordinates, geocoded the same way
+ * as the real seed (see scripts/seed-csv.mjs) — all from the Yosemite cluster
+ * in treks_and_hikes.csv, chosen because they genuinely sit within a few
+ * kilometres of each other. That matters for this file specifically: unlike
+ * the old Singapore demo, the real seed is now ~640 locations scattered
+ * across every continent, so "nearby" is no longer true almost everywhere.
+ * Faking a small distance_m for a location that is actually on another
+ * continent would make the demo map lie about what it is showing, which is
+ * the one thing demo data here must never do. distance_m below is the real
+ * geodesic distance from DEMO_CENTRE, not invented. The pioneer counts are
+ * invented (an RPC value, not a stored fact).
+ *
+ * DEMO_BADGES, DEMO_RECENT_BADGES, DEMO_SET_PROGRESS and DEMO_PROFILE.featured
+ * carry no proximity claim — a badge you already hold, unlike a `locations_near()`
+ * row, is not asserting anything about where you are standing — so those pull
+ * from real locations anywhere in the seed, for set variety a single national
+ * park cluster cannot offer on its own.
  *
  * This is demo scaffolding, not seed data. When the database is live, seed it
  * from a migration rather than from here.
  */
 import type { NearbyLocation } from '@/lib/supabase';
 
-/** Central Singapore. Distances below are measured from here. */
-export const DEMO_CENTRE: [number, number] = [103.8198, 1.3521];
+/** Yosemite Valley Visitor Center. Distances below are measured from here. */
+export const DEMO_CENTRE: [number, number] = [-119.5877, 37.7489];
 
 type DemoLocation = NearbyLocation & {
   /** The demo rows predate set_key/set_name; this is the field screens key art off. */
-  set: 'rainforest' | 'reservoir' | 'coastal' | 'heritage' | 'urban' | 'islands';
+  set: 'summit' | 'trail' | 'expedition' | 'coastal' | 'canyon' | 'park' | 'urban';
 };
 
 export const DEMO_LOCATIONS: DemoLocation[] = [
   {
-    id: 'demo-macritchie',
-    name: 'MacRitchie Treetop',
-    slug: 'macritchie',
-    set_id: 'rainforest',
-    set: 'rainforest',
-    set_key: 'rainforest',
-    set_name: 'Rainforest',
+    id: 'demo-yosemite-falls',
+    name: 'Yosemite Falls Trail',
+    slug: 'yosemitefallstrail',
+    set_id: 'trail',
+    set: 'trail',
+    set_key: 'trail',
+    set_name: 'Trails',
     claimed: false,
     pioneer_number: null,
     points_earned: null,
-    rarity: 'rare',
+    rarity: 'epic',
     difficulty: 3,
-    elevation_m: 60,
-    distance_m: 4200,
-    pioneer_taken: 47,
+    elevation_m: 1223,
+    distance_m: 1132,
+    pioneer_taken: 204,
     pioneer_cap: 500,
     status: 'open',
-    lng: 103.8256,
-    lat: 1.3438,
+    status_note: null,
+    lng: -119.5984165,
+    lat: 37.7432573,
   },
   {
-    id: 'demo-upper-peirce',
-    name: 'Upper Peirce Reservoir',
-    slug: 'upperpeirce',
-    set_id: 'reservoir',
-    set: 'reservoir',
-    set_key: 'reservoir',
-    set_name: 'Reservoir',
+    id: 'demo-lower-yosemite-fall',
+    name: 'Lower Yosemite Fall Trail',
+    slug: 'loweryosemitefalltrail',
+    set_id: 'trail',
+    set: 'trail',
+    set_key: 'trail',
+    set_name: 'Trails',
     claimed: false,
     pioneer_number: null,
     points_earned: null,
     rarity: 'common',
+    difficulty: 1,
+    elevation_m: 3026,
+    distance_m: 11842,
+    pioneer_taken: 421,
+    pioneer_cap: 500,
+    status: 'open',
+    status_note: null,
+    lng: -119.5164635,
+    lat: 37.8393004,
+  },
+  {
+    id: 'demo-mariposa-grove',
+    name: 'Mariposa Grove Loop',
+    slug: 'mariposagroveloop',
+    set_id: 'trail',
+    set: 'trail',
+    set_key: 'trail',
+    set_name: 'Trails',
+    claimed: false,
+    pioneer_number: null,
+    points_earned: null,
+    rarity: 'common',
+    difficulty: 1,
+    elevation_m: 3026,
+    distance_m: 11842,
+    pioneer_taken: 156,
+    pioneer_cap: 500,
+    status: 'open',
+    status_note: null,
+    lng: -119.5164635,
+    lat: 37.8393004,
+  },
+  {
+    id: 'demo-mist-trail',
+    name: 'Mist Trail to Vernal & Nevada Falls',
+    slug: 'misttrailtovernalnevadaf',
+    set_id: 'trail',
+    set: 'trail',
+    set_key: 'trail',
+    set_name: 'Trails',
+    claimed: false,
+    pioneer_number: null,
+    points_earned: null,
+    rarity: 'epic',
+    difficulty: 3,
+    elevation_m: 3026,
+    distance_m: 11842,
+    pioneer_taken: 89,
+    pioneer_cap: 500,
+    status: 'open',
+    status_note: null,
+    lng: -119.5164635,
+    lat: 37.8393004,
+  },
+  {
+    id: 'demo-cathedral-lakes',
+    name: 'Cathedral Lakes Trail',
+    slug: 'cathedrallakestrail',
+    set_id: 'trail',
+    set: 'trail',
+    set_key: 'trail',
+    set_name: 'Trails',
+    claimed: false,
+    pioneer_number: null,
+    points_earned: null,
+    rarity: 'rare',
     difficulty: 2,
-    elevation_m: 30,
-    distance_m: 5100,
+    elevation_m: 3026,
+    distance_m: 11842,
     pioneer_taken: 312,
     pioneer_cap: 500,
     status: 'open',
-    lng: 103.8043,
-    lat: 1.3742,
+    status_note: null,
+    lng: -119.5164635,
+    lat: 37.8393004,
   },
   {
-    id: 'demo-bukit-timah',
-    name: 'Bukit Timah Summit',
-    slug: 'bukittimah',
-    set_id: 'rainforest',
-    set: 'rainforest',
-    set_key: 'rainforest',
-    set_name: 'Rainforest',
+    id: 'demo-four-mile',
+    name: 'Four Mile Trail to Glacier Point',
+    slug: 'fourmiletrailtoglacierpo',
+    set_id: 'trail',
+    set: 'trail',
+    set_key: 'trail',
+    set_name: 'Trails',
+    claimed: false,
+    pioneer_number: null,
+    points_earned: null,
+    rarity: 'epic',
+    difficulty: 3,
+    elevation_m: 3026,
+    distance_m: 11842,
+    pioneer_taken: 47,
+    pioneer_cap: 500,
+    status: 'open',
+    status_note: null,
+    lng: -119.5164635,
+    lat: 37.8393004,
+  },
+  {
+    id: 'demo-clouds-rest',
+    name: 'Clouds Rest Trail',
+    slug: 'cloudsresttrail',
+    set_id: 'trail',
+    set: 'trail',
+    set_key: 'trail',
+    set_name: 'Trails',
+    claimed: false,
+    pioneer_number: null,
+    points_earned: null,
+    rarity: 'epic',
+    difficulty: 3,
+    elevation_m: 3026,
+    distance_m: 11842,
+    pioneer_taken: 21,
+    pioneer_cap: 500,
+    status: 'seasonal',
+    status_note: 'Closed for snow above 8,000 ft; reopens late May.',
+    lng: -119.5164635,
+    lat: 37.8393004,
+  },
+  {
+    id: 'demo-half-dome',
+    name: 'Half Dome via Cables',
+    slug: 'halfdomeviacables',
+    set_id: 'trail',
+    set: 'trail',
+    set_key: 'trail',
+    set_name: 'Trails',
     claimed: false,
     pioneer_number: null,
     points_earned: null,
     rarity: 'legendary',
     difficulty: 4,
-    elevation_m: 163,
-    distance_m: 6200,
+    elevation_m: 3026,
+    distance_m: 11842,
     pioneer_taken: 498,
     pioneer_cap: 500,
     status: 'open',
-    lng: 103.7764,
-    lat: 1.3546,
-  },
-  {
-    id: 'demo-southern-ridges',
-    name: 'Henderson Waves',
-    slug: 'henderson',
-    set_id: 'urban',
-    set: 'urban',
-    set_key: 'urban',
-    set_name: 'Urban',
-    claimed: false,
-    pioneer_number: null,
-    points_earned: null,
-    rarity: 'common',
-    difficulty: 2,
-    elevation_m: 35,
-    distance_m: 3400,
-    pioneer_taken: 204,
-    pioneer_cap: 500,
-    status: 'open',
-    lng: 103.8184,
-    lat: 1.2795,
-  },
-  {
-    id: 'demo-rail-corridor',
-    name: 'Rail Corridor North',
-    slug: 'railcorridor',
-    set_id: 'urban',
-    set: 'urban',
-    set_key: 'urban',
-    set_name: 'Urban',
-    claimed: false,
-    pioneer_number: null,
-    points_earned: null,
-    rarity: 'common',
-    difficulty: 1,
-    elevation_m: 12,
-    distance_m: 900,
-    pioneer_taken: 312,
-    pioneer_cap: 500,
-    status: 'open',
-    lng: 103.7754,
-    lat: 1.3312,
-  },
-  {
-    id: 'demo-fort-siloso',
-    name: 'Fort Siloso',
-    slug: 'fortsiloso',
-    set_id: 'heritage',
-    set: 'heritage',
-    set_key: 'heritage',
-    set_name: 'Heritage',
-    claimed: false,
-    pioneer_number: null,
-    points_earned: null,
-    rarity: 'epic',
-    difficulty: 2,
-    elevation_m: 40,
-    distance_m: 8400,
-    pioneer_taken: 89,
-    pioneer_cap: 500,
-    status: 'open',
-    lng: 103.8093,
-    lat: 1.2588,
-  },
-  {
-    id: 'demo-coney',
-    name: 'Coney Island Boardwalk',
-    slug: 'coney',
-    set_id: 'islands',
-    set: 'islands',
-    set_key: 'islands',
-    set_name: 'Islands',
-    claimed: false,
-    pioneer_number: null,
-    points_earned: null,
-    rarity: 'rare',
-    difficulty: 2,
-    elevation_m: 8,
-    distance_m: 11200,
-    pioneer_taken: 21,
-    pioneer_cap: 500,
-    status: 'open',
-    lng: 103.9226,
-    lat: 1.4106,
-  },
-  {
-    id: 'demo-labrador',
-    name: 'Labrador Nature Reserve',
-    slug: 'labrador',
-    set_id: 'coastal',
-    set: 'coastal',
-    set_key: 'coastal',
-    set_name: 'Coastal',
-    claimed: false,
-    pioneer_number: null,
-    points_earned: null,
-    rarity: 'common',
-    difficulty: 1,
-    elevation_m: 10,
-    distance_m: 7300,
-    pioneer_taken: 156,
-    pioneer_cap: 500,
-    status: 'seasonal',
-    lng: 103.8021,
-    lat: 1.2662,
+    status_note: null,
+    lng: -119.5164635,
+    lat: 37.8393004,
   },
 ];
 
@@ -224,26 +246,200 @@ export const DEMO_COLLECTION = {
     { rarity: 'legendary', held: 1 },
   ] as const,
   pioneerNumbersHeld: 19,
-  bestPioneerNumber: { number: 3, location: 'Rail Corridor' },
+  bestPioneerNumber: { number: 3, location: 'Yosemite Falls Trail' },
   setsCompleted: 2,
-  setsTotal: 6,
+  setsTotal: 7,
   titlesUnlocked: 2,
 } as const;
 
-/** Ranked by closeness to completion, which is the order that gets people out. */
+/** Ranked by closeness to completion, which is the order that gets people out.
+ *  `total` is the real count for that set in the live seed (scripts/seed-csv.mjs's
+ *  by-set breakdown); `held` is invented, same as everywhere else here. */
 export const DEMO_SET_PROGRESS = [
-  { set: 'reservoir', name: 'Reservoir Ring', held: 3, total: 4 },
-  { set: 'rainforest', name: 'Rainforest', held: 4, total: 5 },
-  { set: 'coastal', name: 'Coastal', held: 2, total: 6 },
-  { set: 'heritage', name: 'Heritage', held: 6, total: 6 },
+  { set: 'park', name: 'Parks', held: 18, total: 21 },
+  { set: 'coastal', name: 'Coastal', held: 11, total: 15 },
+  { set: 'urban', name: 'Urban Trails', held: 40, total: 85 },
+  { set: 'trail', name: 'Trails', held: 90, total: 260 },
 ] as const;
 
 /** `glyph` names an icon in components/icons.tsx; the screen maps it to a node. */
 export const DEMO_RECENT_BADGES = [
-  { id: 'hiddenforest', band: 'Hiddenf.', rarity: 'rare', glyph: 'ridge' },
-  { id: 'railcorridor', band: 'Railcor.', rarity: 'common', glyph: 'tree' },
-  { id: 'fortsiloso', band: 'Siloso', rarity: 'epic', glyph: 'fort' },
+  { id: 'aconcagua', band: 'Aconcag.', rarity: 'legendary', glyph: 'ridge' },
+  { id: 'amalficoastpath', band: 'AmalfiC.', rarity: 'rare', glyph: 'drop' },
+  { id: 'mornetroispitonstrail', band: 'MorneTr.', rarity: 'epic', glyph: 'tree' },
 ] as const;
+
+/** The full badge browser's demo fallback — every held badge, not just the
+ *  three-item "Latest" strip DEMO_RECENT_BADGES stands in for elsewhere.
+ *  Spans all seven sets, since a held badge carries no proximity claim the
+ *  way DEMO_LOCATIONS does — see the file header.
+ *
+ *  difficulty backs the badge detail view's generic "what was that run
+ *  like?" estimate (features/trek/run-stats.ts) — demo mode has no trek to
+ *  ask, so every demo badge's stats are that estimate, same as a real badge
+ *  whose location never got a distance_m/avg_time_min from the seed. */
+export const DEMO_BADGES = [
+  { id: 'aconcagua', name: 'Aconcagua', rarity: 'legendary', difficulty: 4, glyph: 'ridge', setName: 'Summits & Volcanoes', pioneerNumber: 214 },
+  { id: 'alpamayobasecamptrek', name: 'Alpamayo Base Camp Trek', rarity: 'legendary', difficulty: 4, glyph: 'fort', setName: 'Expeditions', pioneerNumber: 42 },
+  { id: 'amalficoastpath', name: 'Amalfi Coast Path', rarity: 'rare', difficulty: 2, glyph: 'drop', setName: 'Coastal', pioneerNumber: 118 },
+  { id: 'mornetroispitonstrail', name: 'Morne Trois Pitons Trail', rarity: 'epic', difficulty: 3, glyph: 'tree', setName: 'Parks', pioneerNumber: 89 },
+  { id: 'kingscanyonrimwalk', name: 'Kings Canyon Rim Walk', rarity: 'epic', difficulty: 3, glyph: 'ridge', setName: 'Canyon & Desert', pioneerNumber: 156 },
+  { id: 'grousegrindtrail', name: 'Grouse Grind Trail', rarity: 'legendary', difficulty: 4, glyph: 'ridge', setName: 'Urban Trails', pioneerNumber: 21 },
+  { id: 'cathedrallakestrail', name: 'Cathedral Lakes Trail', rarity: 'rare', difficulty: 2, glyph: 'tree', setName: 'Trails', pioneerNumber: 312 },
+] as const;
+
+/* -------------------------------------------------------------------------- */
+/* Trek journal                                                               */
+/* -------------------------------------------------------------------------- */
+
+/** Real places, invented times and distances — same rule as everywhere else
+ *  in this file. Newest first, matching how my_treks() orders. */
+export const DEMO_TREKS = [
+  {
+    id: 'demo-trek-1',
+    startedAt: '2026-08-19T07:12:00Z',
+    distanceM: 22800,
+    movingTimeS: 18300,
+    status: 'validated' as const,
+    locationName: 'Half Dome via Cables',
+    pioneerNumber: 498,
+    pointsEarned: 312,
+  },
+  {
+    id: 'demo-trek-2',
+    startedAt: '2026-08-16T08:40:00Z',
+    distanceM: 11400,
+    movingTimeS: 8100,
+    status: 'validated' as const,
+    locationName: 'Yosemite Falls Trail',
+    pioneerNumber: 204,
+    pointsEarned: 168,
+  },
+  {
+    id: 'demo-trek-3',
+    startedAt: '2026-08-10T06:55:00Z',
+    distanceM: 1600,
+    movingTimeS: 1200,
+    status: 'validated' as const,
+    locationName: null,
+    pioneerNumber: null,
+    pointsEarned: 64,
+  },
+] as const;
+
+/* -------------------------------------------------------------------------- */
+/* Wildcard                                                                   */
+/* -------------------------------------------------------------------------- */
+
+/** Just the location — queries.ts's demoWildcard() builds a fresh
+ *  assigned/expires window around it every time, since a stored one here
+ *  would inevitably read as already expired the longer a demo session runs.
+ *  A real DEMO_LOCATIONS entry (matching its rarity/difficulty), not an
+ *  invented one, same rule as every other demo row that stands in for
+ *  something claimable — name/setKey/setName are kept here for that
+ *  traceability even though demoWildcard() itself withholds them, the same
+ *  way a real unclaimed pick would. */
+export const DEMO_WILDCARD_LOCATION = {
+  locationId: 'demo-mist-trail',
+  name: 'Mist Trail to Vernal & Nevada Falls',
+  rarity: 'epic' as const,
+  difficulty: 3 as const,
+  setKey: 'trail',
+  setName: 'Trails',
+};
+
+/* -------------------------------------------------------------------------- */
+/* Territories — Capture Territory                                           */
+/* -------------------------------------------------------------------------- */
+
+/** One territory, in progress. Its four members are the same real Yosemite
+ *  cluster DEMO_LOCATIONS already uses elsewhere — geographically close in
+ *  reality, not just in this file's invented grouping. */
+export const DEMO_TERRITORIES = [
+  {
+    territoryId: 'demo-territory-yosemite-falls',
+    name: 'Yosemite Falls Trail area',
+    held: 2,
+    total: 4,
+    captured: false,
+    durationS: null,
+    bestDurationS: 5400,
+  },
+] as const;
+
+export const DEMO_TERRITORY_LOCATIONS: Record<
+  string,
+  {
+    id: string;
+    name: string;
+    rarity: 'common' | 'rare' | 'epic' | 'legendary';
+    difficulty: 1 | 2 | 3 | 4;
+    claimed: boolean;
+    pioneerNumber: number | null;
+    claimedAt: string | null;
+  }[]
+> = {
+  'demo-territory-yosemite-falls': [
+    {
+      id: 'demo-yosemite-falls',
+      name: 'Yosemite Falls Trail',
+      rarity: 'epic',
+      difficulty: 3,
+      claimed: true,
+      pioneerNumber: 204,
+      claimedAt: '2026-08-16T08:40:00Z',
+    },
+    {
+      id: 'demo-lower-yosemite-fall',
+      name: 'Lower Yosemite Fall Trail',
+      rarity: 'common',
+      difficulty: 1,
+      claimed: true,
+      pioneerNumber: 421,
+      claimedAt: '2026-08-16T09:10:00Z',
+    },
+    {
+      id: 'demo-mariposa-grove',
+      name: 'Mariposa Grove Loop',
+      rarity: 'common',
+      difficulty: 1,
+      claimed: false,
+      pioneerNumber: null,
+      claimedAt: null,
+    },
+    {
+      id: 'demo-mist-trail',
+      name: 'Mist Trail to Vernal & Nevada Falls',
+      rarity: 'epic',
+      difficulty: 3,
+      claimed: false,
+      pioneerNumber: null,
+      claimedAt: null,
+    },
+  ],
+};
+
+export const DEMO_TERRITORY_LEADERBOARD: Record<
+  string,
+  { rank: number; displayName: string; durationS: number; capturedAt: string; isYou: boolean }[]
+> = {
+  'demo-territory-yosemite-falls': [
+    {
+      rank: 1,
+      displayName: 'Climber #0089',
+      durationS: 5400,
+      capturedAt: '2026-08-09T12:00:00Z',
+      isYou: false,
+    },
+    {
+      rank: 2,
+      displayName: 'Climber #0214',
+      durationS: 7920,
+      capturedAt: '2026-08-14T15:00:00Z',
+      isYou: false,
+    },
+  ],
+};
 
 /* -------------------------------------------------------------------------- */
 /* League                                                                     */
@@ -277,22 +473,89 @@ export type LeagueRow = {
   detail?: string;
 };
 
-export const DEMO_STANDINGS: LeagueRow[] = [
-  { rank: 5, name: 'Mei Ting', initials: 'MT', tint: '#7A8D99', points: 7140, treks: 18 },
-  { rank: 6, name: 'Jonas D.', initials: 'JD', tint: '#A65A3A', points: 6800, treks: 15 },
-  {
-    rank: 7,
-    name: 'You',
-    initials: 'A',
-    tint: '#DCC6A1',
-    points: 6420,
-    treks: 14,
-    isYou: true,
-    detail: '14 treks · 62 km',
-  },
-  { rank: 8, name: 'Priya R.', initials: 'PR', tint: '#6F8F75', points: 6105, treks: 12 },
-  { rank: 9, name: 'Kai W.', initials: 'KW', tint: '#1F3D2E', points: 5940, treks: 11 },
-];
+/**
+ * A whole division, not a window around "you". The League screen scrolls every
+ * place from #1 to #42 and draws the promotion and relegation boundaries
+ * through the list where they actually fall, so demo needs people at every
+ * rank for the rules to have something to sit between.
+ *
+ * The numbers are tuned to agree with DEMO_LEAGUE rather than invented twice:
+ * you sit 7th on 6,420, and 8th holds 6,041 — which is exactly the
+ * `pointsToPromotion` of 380 the summary card quotes. A demo whose two cards
+ * contradict each other teaches whoever is reviewing it to distrust both.
+ */
+export const DEMO_STANDINGS: LeagueRow[] = (() => {
+  const TINTS = ['#7A8D99', '#A65A3A', '#6F8F75', '#1F3D2E', '#4A4740', '#46707F'];
+  const NAMES = [
+    'Mei Ting', 'Jonas D.', 'Priya R.', 'Kai W.', 'Sofia M.', 'Tomas B.',
+    'Aiko N.', 'Marcus L.', 'Elena V.', 'Diego S.', 'Freya H.', 'Omar K.',
+  ];
+
+  // Deterministic jitter: stable across renders, unlike Math.random().
+  const jitter = (seed: number, span: number) => ((seed * 2654435761) >>> 0) % span;
+
+  // The head is hand-set so the anchors land exactly; the tail decays from
+  // just below 8th place into the relegation zone with plausible gaps.
+  const HEAD = [12840, 11420, 10610, 9530, 8675, 7045];
+  const YOU_RANK = 7;
+  const YOU_POINTS = 6420;
+  const PROMO_CUTOFF_POINTS = 6041; // 380 behind you, matching pointsToPromotion
+
+  const rows: LeagueRow[] = [];
+
+  for (let rank = 1; rank <= 42; rank += 1) {
+    if (rank === YOU_RANK) {
+      rows.push({
+        rank,
+        name: 'You',
+        initials: 'A',
+        tint: '#DCC6A1',
+        points: YOU_POINTS,
+        treks: 14,
+        isYou: true,
+        detail: '14 treks · 62 km',
+      });
+      continue;
+    }
+
+    let points: number;
+    let treks: number;
+    if (rank < YOU_RANK) {
+      points = HEAD[rank - 1];
+      // Trek counts slope down towards yours rather than fighting it: a table
+      // where 6th walked fewer treks than 7th but sits higher reads as a bug
+      // even though distance, not count, is what separates them.
+      treks = [19, 17, 16, 15, 15, 14][rank - 1];
+    } else if (rank === YOU_RANK + 1) {
+      points = PROMO_CUTOFF_POINTS;
+      treks = 12;
+    } else {
+      points = rank === YOU_RANK + 2 ? 5910 : rows[rows.length - 1].points;
+      points -= 90 + jitter(rank, 140);
+      points = Math.max(240, Math.round(points / 5) * 5);
+      treks = Math.max(2, 11 - Math.round((rank - YOU_RANK) / 4) - (jitter(rank, 3) === 0 ? 1 : 0));
+    }
+
+    // Real-looking names at the top of the table thin into the default
+    // "Climber #NNNN" identity most anonymous accounts actually carry.
+    const name =
+      rank <= NAMES.length ? NAMES[(rank - 1) % NAMES.length] : `Climber #${((rank * 137) % 700) + 180}`;
+    const words = name.replace(/[^a-zA-Z ]/g, '').split(' ').filter(Boolean);
+    const initials =
+      ((words[0]?.[0] ?? '') + (words[1]?.[0] ?? '')).toUpperCase() || '?';
+
+    rows.push({
+      rank,
+      name,
+      initials,
+      tint: TINTS[rank % TINTS.length],
+      points,
+      treks,
+    });
+  }
+
+  return rows;
+})();
 
 /** A group row is a league row without the trek count: private leagues score one thing. */
 export type GroupRow = Pick<LeagueRow, 'rank' | 'name' | 'initials' | 'tint' | 'points' | 'isYou'>;
@@ -336,7 +599,11 @@ export const DEMO_GROUP: {
 export const DEMO_PROFILE = {
   name: 'Aarav',
   initials: 'A',
-  title: 'Keeper of Stones',
+  // Mechanically derived from the demo set's own name, same rule
+  // my_profile() applies server-side now (0022) — every DEMO_LOCATIONS row
+  // is in the "Trails" set (see DEMO_LOCATIONS above), so this is what a
+  // real profile with that set completed would show.
+  title: 'Trails Keeper',
   /** Permanent and per-city, matching profiles.explorer_number in the schema. */
   explorerNumber: 472,
   standing: 'Founding pioneer',
@@ -351,10 +618,43 @@ export const DEMO_PROFILE = {
   ],
   /** Four slots filled, one empty. The empty slot is the invitation. */
   featured: [
-    { id: 'singapore', band: 'Singapore', glyph: 'summit', tint: '#1A1A1A' },
-    { id: 'heritage', band: 'Heritage', glyph: 'fort', tint: '#4A4740' },
-    { id: 'week32', band: 'Wk 32', glyph: 'drop', tint: '#A65A3A' },
-    { id: 'hiddenforest', band: 'Hiddenf.', glyph: 'ridge', tint: '#7A8D99' },
+    { id: 'grousegrindtrail', band: 'GrouseG.', glyph: 'ridge', tint: '#7A9E4F' },
+    { id: 'alpamayobasecamptrek', band: 'Alpamay.', glyph: 'fort', tint: '#6E7B88' },
+    { id: 'kingscanyonrimwalk', band: 'KingsCa.', glyph: 'ridge', tint: '#B5651D' },
+    { id: 'cathedrallakestrail', band: 'Cathedr.', glyph: 'tree', tint: '#35604A' },
   ],
   treksThisMonth: 14,
 } as const;
+
+/* -------------------------------------------------------------------------- */
+/* Suggestions                                                                */
+/* -------------------------------------------------------------------------- */
+
+/** One of each status, so the screen's three visual states all have something
+ *  to show before a real submission exists. */
+export const DEMO_SUGGESTIONS = [
+  {
+    id: 'demo-suggestion-1',
+    name: 'Overlook above Half Dome Village',
+    notes: 'Small clearing off the main trail, no sign or marker.',
+    status: 'pending' as const,
+    reviewNote: null,
+    createdAt: '2026-08-20T09:15:00Z',
+  },
+  {
+    id: 'demo-suggestion-2',
+    name: 'Tunnel View East Ledge',
+    notes: null,
+    status: 'approved' as const,
+    reviewNote: 'Added to Trails.',
+    createdAt: '2026-08-14T16:40:00Z',
+  },
+  {
+    id: 'demo-suggestion-3',
+    name: 'Parking Lot Behind Gas Station',
+    notes: null,
+    status: 'rejected' as const,
+    reviewNote: 'Not a walkable destination.',
+    createdAt: '2026-08-05T11:02:00Z',
+  },
+] as const;

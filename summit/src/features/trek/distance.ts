@@ -60,3 +60,37 @@ export function haversineM(a: { lat: number; lng: number }, b: { lat: number; ln
   const h = Math.sin(dLat / 2) ** 2 + Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
   return 2 * R * Math.asin(Math.sqrt(h));
 }
+
+/**
+ * The destination-point formula: every point exactly `radiusM` from `centre`,
+ * evenly spaced by bearing, closed back to its own start — a ring, in
+ * [lng, lat] tuples (GeoJSON's own coordinate order). Used to draw the
+ * Explore map's 2 km/5 km distance rings; same trust level as haversineM
+ * above, a display convenience rather than a claim input.
+ */
+export function ringPolygon(
+  centre: { lat: number; lng: number },
+  radiusM: number,
+  steps = 64,
+): [number, number][] {
+  const R = 6_371_000;
+  const lat1 = (centre.lat * Math.PI) / 180;
+  const lng1 = (centre.lng * Math.PI) / 180;
+  const d = radiusM / R;
+
+  const points: [number, number][] = [];
+  for (let i = 0; i <= steps; i++) {
+    const bearing = (i / steps) * 2 * Math.PI;
+    const lat2 = Math.asin(
+      Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(bearing),
+    );
+    const lng2 =
+      lng1 +
+      Math.atan2(
+        Math.sin(bearing) * Math.sin(d) * Math.cos(lat1),
+        Math.cos(d) - Math.sin(lat1) * Math.sin(lat2),
+      );
+    points.push([(lng2 * 180) / Math.PI, (lat2 * 180) / Math.PI]);
+  }
+  return points;
+}

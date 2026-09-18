@@ -119,6 +119,27 @@ export function SearchIcon(p: IconProps) {
   );
 }
 
+/** Three sliders, transcribed from the map-controls path in the v4 mockup. */
+export function FilterIcon(p: IconProps) {
+  return (
+    <Svg {...base(p)}>
+      <Path d="M4 7h16M4 12h16M4 17h10" {...stroke(p)} />
+      <Circle cx="16" cy="17" r="2.4" fill={p.color ?? colour.muted} />
+    </Svg>
+  );
+}
+
+/** Not from the mockup: this screen (suggest a location) is new. Kept to the
+ *  same single stroke weight as the rest of the set rather than a filled dot,
+ *  so it doesn't read as a different, heavier icon family next to it. */
+export function PlusIcon(p: IconProps) {
+  return (
+    <Svg {...base(p)}>
+      <Path d="M12 5v14M5 12h14" {...stroke(p)} />
+    </Svg>
+  );
+}
+
 export function InfoIcon(p: IconProps) {
   return (
     <Svg {...base(p)}>
@@ -169,7 +190,7 @@ export function DotsIcon(p: IconProps) {
  * sticker, and a heavier glyph would push it back toward the v3 look.
  */
 
-/** Water, for reservoir badges. */
+/** Water, for coastal badges. */
 export function DropIcon(p: IconProps) {
   return (
     <Svg {...base(p)}>
@@ -178,7 +199,7 @@ export function DropIcon(p: IconProps) {
   );
 }
 
-/** Canopy, for rainforest badges. */
+/** Canopy, for trail and park badges. */
 export function TreeIcon(p: IconProps) {
   return (
     <Svg {...base(p)}>
@@ -187,7 +208,7 @@ export function TreeIcon(p: IconProps) {
   );
 }
 
-/** A flagged tower, for heritage badges. */
+/** A flagged tower, for expedition badges. */
 export function FortIcon(p: IconProps) {
   return (
     <Svg {...base(p)}>
@@ -203,6 +224,114 @@ export function PennantIcon(p: IconProps) {
     <Svg {...base(p)}>
       <Path d="M6 21V4" {...stroke(p)} />
       <Path d="M6 4.5h11l-2 3.5 2 3.5H6" {...stroke(p)} />
+    </Svg>
+  );
+}
+
+export function WalkingIcon(p: IconProps) {
+  return (
+    <Svg {...base(p)}>
+      <Circle cx="13.5" cy="4.4" r="1.9" {...stroke(p)} />
+      <Path d="M11 21l1.6-6.2-2.6-2.2 1-4 3.4 2.4 2.6.9" {...stroke(p)} />
+      <Path d="M9.6 12.8 7 17" {...stroke(p)} />
+    </Svg>
+  );
+}
+
+export function CyclingIcon(p: IconProps) {
+  return (
+    <Svg {...base(p)}>
+      <Circle cx="6" cy="16.5" r="3.4" {...stroke(p)} />
+      <Circle cx="18" cy="16.5" r="3.4" {...stroke(p)} />
+      <Path d="M6 16.5 10.5 9H15l3 7.5" {...stroke(p)} />
+      <Path d="M9.4 9h4.2" {...stroke(p)} />
+    </Svg>
+  );
+}
+
+export function RunningIcon(p: IconProps) {
+  return (
+    <Svg {...base(p)}>
+      <Circle cx="15.4" cy="4.5" r="1.9" {...stroke(p)} />
+      <Path d="M8 21l3.2-5.4-2.2-3.2 1.6-3.9 3.6 3.1 3 .8" {...stroke(p)} />
+      <Path d="M9.6 11.4 6.2 12.6" {...stroke(p)} />
+    </Svg>
+  );
+}
+
+export function ScenicIcon(p: IconProps) {
+  return (
+    <Svg {...base(p)}>
+      <Circle cx="17.2" cy="6.6" r="2.3" {...stroke(p)} />
+      <Path d="M3 19l5.4-7.2 3.4 4.4L15 12.6 21 19Z" {...stroke(p)} />
+    </Svg>
+  );
+}
+
+export function UrbanIcon(p: IconProps) {
+  return (
+    <Svg {...base(p)}>
+      <Path d="M4 20V9.5h5.5V20" {...stroke(p)} />
+      <Path d="M9.5 20V4H20v16" {...stroke(p)} />
+      <Path d="M12.6 8h4M12.6 12h4M12.6 16h4" {...stroke(p)} />
+    </Svg>
+  );
+}
+
+export function CoastalIcon(p: IconProps) {
+  return (
+    <Svg {...base(p)}>
+      <Path d="M3 15.5c2-2 4-2 6 0s4 2 6 0 4-2 6 0" {...stroke(p)} />
+      <Path d="M3 20c2-2 4-2 6 0s4 2 6 0 4-2 6 0" {...stroke(p)} />
+      <Path d="M7.5 10.5a4.5 4.5 0 0 1 9 0" {...stroke(p)} />
+    </Svg>
+  );
+}
+
+export function IslandsIcon(p: IconProps) {
+  return (
+    <Svg {...base(p)}>
+      <Path d="M4 17c3.5-1.6 5.5-6 8-6s4.5 4.4 8 6" {...stroke(p)} />
+      <Path d="M4 20.5h16" {...stroke(p)} />
+      <Circle cx="12" cy="5.4" r="2" {...stroke(p)} />
+    </Svg>
+  );
+}
+
+export function TimerOffIcon(p: IconProps) {
+  return (
+    <Svg {...base(p)}>
+      <Circle cx="12" cy="12" r="8.5" {...stroke(p)} />
+      <Path d="M12 7.4v5l3 1.8" {...stroke(p)} />
+      <Path d="m4 4 3 3" {...stroke(p)} />
+    </Svg>
+  );
+}
+
+export function ShieldCheckIcon(p: IconProps) {
+  return (
+    <Svg {...base(p)}>
+      <Path d="M12 3.5 19.5 7v5.6c0 4-3.2 7-7.5 8.9-4.3-1.9-7.5-4.9-7.5-8.9V7z" {...stroke(p)} />
+      <Path d="m9.2 12.2 2 2 3.6-3.9" {...stroke(p)} />
+    </Svg>
+  );
+}
+
+export function AlertTriangleIcon(p: IconProps) {
+  return (
+    <Svg {...base(p)}>
+      <Path d="M12 3.6 21 19H3z" {...stroke(p)} />
+      <Path d="M12 10v4" {...stroke(p)} />
+      <Path d="M12 16.4v.2" {...stroke(p)} />
+    </Svg>
+  );
+}
+
+export function RefreshIcon(p: IconProps) {
+  return (
+    <Svg {...base(p)}>
+      <Circle cx="12" cy="12" r="8.5" {...stroke(p)} />
+      <Path d="M12 16.4v-4.8M12 8.2v.2" {...stroke(p)} />
     </Svg>
   );
 }

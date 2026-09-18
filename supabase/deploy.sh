@@ -107,13 +107,29 @@ run migrations/0009_set_detail.sql "0009 set detail screen"
 run migrations/0010_location_points.sql "0010 points earned, per claim"
 run migrations/0011_location_elevation.sql "0011 elevation on locations_near()"
 run migrations/0012_points_split.sql "0012 XP / Monthly points split"
+run migrations/0013_badges_and_treks.sql "0013 badge browser + trek journal"
+run migrations/0014_location_suggestions.sql "0014 suggest-a-location"
+run migrations/0015_untargeted_trek_scoring.sql "0015 untargeted treks earn points"
+run migrations/0016_groups.sql      "0016 private groups + join requests"
+run migrations/0017_rename.sql      "0017 display name rename"
+run migrations/0018_speed_window.sql "0018 sustained-window speed check"
+run migrations/0019_raise_pioneer_cap.sql "0019 raise pioneer cap to 1000 (temp)"
+run migrations/0020_location_status_note.sql "0020 status_note on read APIs, closed locations stay listed"
+run migrations/0021_claim_points_breakdown.sql "0021 itemized points for the reward screen"
+run migrations/0022_titles_and_review.sql "0022 per-set titles, 400pt set-complete, suggestion review"
+run migrations/0023_badge_run_stats.sql "0023 badge detail: run stats behind a claim, dev-fake flag on treks"
+run migrations/0024_daily_wildcard.sql "0024 Wildcard: daily location pick, reroll, bonus points"
+run migrations/0025_territories.sql "0025 Capture Territory: clusters, capture detection, leaderboard"
+run migrations/0026_wildcard_same_country.sql "0026 Wildcard only picks the caller's own country"
+run migrations/0027_league_rollover_reenroll.sql "0027 league rollover re-enrolls everyone at 0 points"
 
 if [ "$MODE" != "--schema-only" ]; then
   echo
-  echo "seed (this is ~54MB, allow a few minutes):"
-  run seed/0001_singapore_locations.sql "0001 163 locations"
-  run seed/0002_singapore_trails.sql    "0002 81k trail ways"
-  run seed/0003_singapore_no_go.sql     "0003 127k building/water polygons"
+  echo "seed (geocoded from treks_and_hikes.csv):"
+  run seed/0001_world_locations.sql "0001 ~640 locations worldwide"
+  run seed/0004_territories.sql "0004 starter Capture Territory clusters"
+  run seed/0005_macritchie_signage.sql "0005 MacRitchie Reservoir (hand-placed)"
+  run seed/0006_location_country_codes.sql "0006 country_code backfill (reverse-geocoded)"
 fi
 
 echo

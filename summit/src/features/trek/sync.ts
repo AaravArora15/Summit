@@ -18,21 +18,35 @@ import {
   type LocalPoint,
 } from '@/features/trek/recorder';
 import { deviceIntegrity } from '@/features/trek/integrity';
-import { claimLocation, getSupabase, isSupabaseConfigured, type ClaimResult } from '@/lib/supabase';
+import { recordTrekActivity } from '@/features/trek/inactivity-nudge';
+import {
+  claimLocation,
+  getSupabase,
+  isSupabaseConfigured,
+  validateTrek,
+  type ClaimResult,
+} from '@/lib/supabase';
 
 export type SyncOutcome =
   | { status: 'claimed'; result: ClaimResult }
+  /** No target was ever attempted — see validate_trek(). Distinct from
+   *  'rejected' (a claim was refused) and 'deferred' (network trouble, will
+   *  retry): this walk is done and fully uploaded, it just never aimed at
+   *  anywhere to claim. */
+  | { status: 'recorded' }
   | { status: 'rejected'; reason: string }
   | { status: 'deferred'; reason: string };
 
 /**
- * Upload one trek and attempt the claim.
- *
- * The two halves are separate on purpose. A trek is worth keeping even if the
- * claim is refused: the walk still counts for distance, time, and the league.
+ * Upload one trek and attempt the claim. The two halves are separate on
+ * purpose: a trek is worth keeping even if the claim is refused, since the
+ * walk still counts for distance, time, and the league.
  */
-export async function syncTrek(args: {
+async function syncTrekInner(args: {
+  /** The local trek row to upload. */
   localTrekId: string;
+  /** Where the trek was aimed, or null for a free walk. Persisted with the
+   *  local row, so deferred retries still claim (see syncPendingTreks). */
   locationId: string | null;
   /** A local file (or blob/data) URI from the picker. Uploaded to the
    *  claim-photos bucket once the trek row exists, since the storage path is
@@ -41,9 +55,8 @@ export async function syncTrek(args: {
   /** From the picker result, so the upload's extension and Content-Type match
    *  what was actually captured instead of assuming JPEG. */
   photoMimeType?: string;
-  /** Self-reported, for the "with one other person" points multiplier. Not
-   *  persisted locally (same as `locationId` — see syncPendingTreks below),
-   *  so a deferred retry after an app restart uploads as solo. */
+  /** Self-reported, for the "with one other person" points multiplier.
+   *  Not persisted locally, so a deferred retry uploads as solo. */
   withPartner?: boolean;
 }): Promise<SyncOutcome> {
   if (!isSupabaseConfigured) {
@@ -52,7 +65,14 @@ export async function syncTrek(args: {
 
   const points = getTrekPoints(args.localTrekId);
   if (points.length === 0) {
-    return { status: 'rejected', reason: 'No track was recorded' };
+    // The single most useful fact when someone reports "no badge": the map dot
+    // follows the OS regardless of this app, so a green dot and an empty
+    // track are fully compatible. Say which one happened.
+    return {
+      status: 'rejected',
+      reason:
+        'No track was recorded — the phone never saved a GPS fix to this trek. Check location permission and try a short walk.',
+    };
   }
 
   const supabase = getSupabase();
@@ -103,10 +123,20 @@ export async function syncTrek(args: {
       if (error) return { status: 'deferred', reason: error.message };
     }
 
-    // 3. The claim, if this trek was aimed at somewhere.
+    // 3. No target: validate the walk on its own honesty rather than
+    //    attempting a claim there is nothing to aim at.
     if (!args.locationId) {
-      markTrekSynced(args.localTrekId);
-      return { status: 'deferred', reason: 'Trek recorded without a target' };
+      try {
+        const result = await validateTrek(trek.id);
+        markTrekSynced(args.localTrekId);
+        return result.status === 'validated'
+          ? { status: 'recorded' }
+          : { status: 'rejected', reason: result.reason ?? 'Not counted' };
+      } catch (error) {
+        // The trek and track are already uploaded; only validation itself
+        // failed to reach the server. Retryable, same as any other deferral.
+        return { status: 'deferred', reason: messageOf(error) };
+      }
     }
 
     let photoPath: string | undefined;
@@ -128,6 +158,10 @@ export async function syncTrek(args: {
       }
     }
 
+    console.warn(
+      `[sync] claiming ${args.locationId} with ${points.length} points, photo: ${photoPath ? 'yes' : 'no'}`,
+    );
+
     try {
       const result = await claimLocation({
         locationId: args.locationId,
@@ -137,9 +171,17 @@ export async function syncTrek(args: {
       markTrekSynced(args.localTrekId);
       return { status: 'claimed', result };
     } catch (claimError) {
-      // The trek uploaded fine; only the claim was refused. Mark it synced so
-      // we do not upload the track again, and surface the server's reason,
-      // which is written to be readable ("did not dwell at the location").
+      // The trek uploaded fine; only the claim was refused. A refused claim
+      // never marks the trek validated on its own (claim_location() only does
+      // that on success), so without this the "still counts for distance,
+      // time, and your league" line below would be false — best-effort here,
+      // same trust level the photo-upload fallback above already is: the
+      // claim's own rejection reason is what surfaces either way.
+      try {
+        await validateTrek(trek.id);
+      } catch (validateError) {
+        console.warn('[sync] validating the rejected-claim trek failed', messageOf(validateError));
+      }
       markTrekSynced(args.localTrekId);
       return { status: 'rejected', reason: messageOf(claimError) };
     }
@@ -148,15 +190,52 @@ export async function syncTrek(args: {
   }
 }
 
+/**
+ * The exported entry point. One line in the Metro logs per finished trek --
+ * target, point count, how it ended -- because when a badge "did not happen",
+ * this is where the answer lives and nobody is attached to a debugger on a
+ * trailhead.
+ */
+export async function syncTrek(args: Parameters<typeof syncTrekInner>[0]): Promise<SyncOutcome> {
+  const outcome = await syncTrekInner(args);
+  console.warn(
+    '[sync] outcome',
+    JSON.stringify({
+      trek: args.localTrekId,
+      target: args.locationId ?? 'none',
+      points: getTrekPoints(args.localTrekId).length,
+      status: outcome.status,
+      detail: 'result' in outcome ? outcome.result : ('reason' in outcome ? outcome.reason : ''),
+    }),
+  );
+  // Anything but 'deferred' means a walk genuinely happened, claimed or not —
+  // same test syncPendingTreks() below already uses for its own "synced"
+  // count. Pushes the inactivity reminder out from today. getSession() here
+  // rather than getUser() (already called inside syncTrekInner, for a
+  // network-verified identity): this one is best-effort and local-only is
+  // fine, so it isn't worth a second round trip.
+  if (outcome.status !== 'deferred') {
+    const { data } = await getSupabase().auth.getSession();
+    const userId = data.session?.user.id;
+    if (userId) void recordTrekActivity(userId);
+  }
+  return outcome;
+}
+
 /** Drain anything left over from previous walks. Safe to call on app start. */
 export async function syncPendingTreks(): Promise<number> {
   if (!isSupabaseConfigured) return 0;
 
   let synced = 0;
   for (const trek of getPendingTreks()) {
-    // Targets are not persisted per trek yet, so these upload as untargeted
-    // walks. They still count for distance, time, and the league.
-    const outcome = await syncTrek({ localTrekId: trek.id, locationId: null });
+    // The claim target is persisted with the trek row, so a retry still aims
+    // where the walk actually went. This used to upload everything as an
+    // untargeted walk -- which quietly turned "network died at the trailhead"
+    // into "the badge I earned yesterday never existed".
+    const outcome = await syncTrek({
+      localTrekId: trek.id,
+      locationId: trek.target_location_id ?? null,
+    });
     if (outcome.status !== 'deferred') synced += 1;
   }
   return synced;

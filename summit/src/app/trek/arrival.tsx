@@ -6,21 +6,62 @@
  * number displayed optimistically and then withdrawn would break the one
  * promise the product makes, so the states here are honest about waiting.
  */
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BadgeReveal } from '@/components/badge-reveal';
 import { Body, Button, Card, Data, H1, Label, Small } from '@/components/ui';
+import { takeDevFakeOutcome } from '@/features/trek/dev-fake-claim';
 import { useTrek } from '@/features/trek/store';
 import { syncTrek, type SyncOutcome } from '@/features/trek/sync';
-import { colour, space } from '@/theme/tokens';
+import { shortBand, useWildcard } from '@/lib/queries';
+import { claimPointsBreakdown, type ClaimPointsRow } from '@/lib/supabase';
+import { colour, rarityColour, space } from '@/theme/tokens';
+
+/** Copy for each points_ledger source (see award_claim_points(), 0012) —
+ *  what a claim can pay for, in the order the reward screen lists them. */
+const SOURCE_LABEL: Record<ClaimPointsRow['source'], string> = {
+  distance: 'Distance',
+  moving_time: 'Moving time',
+  badge: 'Badge',
+  new_route: 'First stop in a new set',
+  difficulty: 'Difficulty',
+  set_complete: 'Set complete',
+  secret_spot: 'Secret spot',
+  beat_average: 'Faster than average',
+  wildcard: "Today's Wildcard",
+};
+const SOURCE_ORDER: ClaimPointsRow['source'][] = [
+  'distance',
+  'moving_time',
+  'new_route',
+  'difficulty',
+  'badge',
+  'wildcard',
+  'set_complete',
+  'secret_spot',
+  'beat_average',
+];
 
 export default function ArrivalScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { trekId, targetLocationId, targetName, targetIsSecret, distanceM, withPartner } = useTrek();
+  const queryClient = useQueryClient();
+  const {
+    trekId,
+    targetLocationId,
+    targetName,
+    targetRarity,
+    targetGlyph,
+    targetIsSecret,
+    targetIsWildcard,
+    distanceM,
+    withPartner,
+  } = useTrek();
   const [outcome, setOutcome] = useState<SyncOutcome | null>(null);
   const [busy, setBusy] = useState(true);
   const [photo, setPhoto] = useState<{ uri: string; mimeType?: string } | null>(null);
@@ -40,6 +81,17 @@ export default function ArrivalScreen() {
 
   useEffect(() => {
     if (needsPhoto) return; // waiting on <PhotoStep>, below
+
+    // A dev "fake claim" (see dev-fake-claim.ts) already did the real upload
+    // and claim server-side before navigating here — there is no local trek
+    // to sync, so its outcome is used as-is instead of calling syncTrek().
+    const fakeOutcome = takeDevFakeOutcome();
+    if (fakeOutcome) {
+      setOutcome(fakeOutcome);
+      setBusy(false);
+      return;
+    }
+
     let cancelled = false;
 
     (async () => {
@@ -61,13 +113,21 @@ export default function ArrivalScreen() {
       if (!cancelled) {
         setOutcome(result);
         setBusy(false);
+        // A claimed Wildcard's reveal (name/rarity/glyph) lives behind
+        // my_wildcard() itself — see <Outcome>'s own useWildcard() call —
+        // and that query may have been cached from before this claim
+        // landed, so it needs telling to go fetch the now-revealed row
+        // rather than showing whatever it last knew.
+        if (result.status === 'claimed' && targetIsWildcard) {
+          void queryClient.invalidateQueries({ queryKey: ['wildcard'] });
+        }
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [needsPhoto, trekId, targetLocationId, photo, withPartner]);
+  }, [needsPhoto, trekId, targetLocationId, photo, withPartner, targetIsWildcard, queryClient]);
 
   if (needsPhoto) {
     return (
@@ -84,14 +144,28 @@ export default function ArrivalScreen() {
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }]}>
       <View style={styles.body}>
-        <Label style={{ color: colour.forest, letterSpacing: 2.4 }}>You made it</Label>
-        <H1 style={styles.title}>{targetName ?? 'Somewhere new'}</H1>
+        <Label style={{ color: colour.forest, letterSpacing: 2.4 }}>
+          {targetIsWildcard || targetName ? 'You made it' : 'Walk complete'}
+        </Label>
+        <H1 style={styles.title}>
+          {targetIsWildcard ? "Today's Wildcard" : (targetName ?? 'Free walk')}
+        </H1>
         <Small style={{ textAlign: 'center', marginTop: 6 }}>
           {(distanceM / 1000).toFixed(2)} km walked
         </Small>
 
         <View style={styles.result}>
-          {busy ? <Pending /> : <Outcome outcome={outcome} />}
+          {busy ? (
+            <Pending />
+          ) : (
+            <Outcome
+              outcome={outcome}
+              targetName={targetName}
+              targetRarity={targetRarity}
+              targetGlyph={targetGlyph}
+              targetIsWildcard={targetIsWildcard}
+            />
+          )}
         </View>
       </View>
 
@@ -205,24 +279,83 @@ function Pending() {
   );
 }
 
-function Outcome({ outcome }: { outcome: SyncOutcome | null }) {
+function Outcome({
+  outcome,
+  targetName,
+  targetRarity,
+  targetGlyph,
+  targetIsWildcard,
+}: {
+  outcome: SyncOutcome | null;
+  targetName: string | null;
+  targetRarity: string | null;
+  targetGlyph: string | null;
+  targetIsWildcard: boolean;
+}) {
+  // Always called (rules of hooks), only ever read from for a Wildcard
+  // claim below — every other outcome ignores it entirely.
+  const { data: wildcard } = useWildcard();
+
   if (!outcome) return null;
 
   if (outcome.status === 'claimed') {
     const { pioneer_number, edition } = outcome.result;
+    // A Wildcard hunt never carried targetName/targetRarity/targetGlyph in
+    // the first place (see store.ts's targetIsWildcard) — the reveal comes
+    // from my_wildcard() itself, now that `claimed` unlocks it, rather than
+    // anything this screen already knew going in. Every other claim keeps
+    // using the display conveniences carried from the pin the trek was
+    // started from (real, but not server-issued the way pioneer_number is).
+    // A secret spot carries neither, so it falls back to the system's own
+    // "unknown identity" tint rather than inventing a rarity.
+    const revealName = targetIsWildcard ? (wildcard.kind === 'active' ? wildcard.name : null) : targetName;
+    const revealRarity = targetIsWildcard
+      ? wildcard.kind === 'active'
+        ? wildcard.rarity
+        : null
+      : targetRarity;
+    const revealGlyph = targetIsWildcard
+      ? wildcard.kind === 'active'
+        ? wildcard.glyph
+        : null
+      : targetGlyph;
+    const tint =
+      revealRarity && revealRarity in rarityColour
+        ? rarityColour[revealRarity as keyof typeof rarityColour]
+        : rarityColour.mystery;
     return (
-      <Card variant="dark" style={styles.card}>
-        <Label style={{ color: 'rgba(242,242,238,0.6)' }}>
-          {edition === 'pioneer' ? 'Pioneer number' : 'Explorer edition'}
-        </Label>
-        <Data style={styles.number}>
-          {pioneer_number === null ? 'Claimed' : `#${String(pioneer_number).padStart(4, '0')}`}
-        </Data>
-        <Small style={{ color: 'rgba(242,242,238,0.72)', textAlign: 'center', marginTop: 4 }}>
-          {pioneer_number === null
-            ? 'The five hundred numbers here are gone, but the badge is yours.'
-            : 'Permanent. It never changes and never transfers.'}
-        </Small>
+      <>
+        <BadgeReveal
+          band={revealName ? shortBand(revealName) : undefined}
+          tint={tint}
+          glyph={revealGlyph ?? undefined}
+          width={148}
+        />
+        <Card variant="dark" style={[styles.card, styles.claimCard]}>
+          <Label style={{ color: 'rgba(242,242,238,0.6)', fontSize: 8 }}>
+            {edition === 'pioneer' ? 'Pioneer number' : 'Explorer edition'}
+          </Label>
+          <Data style={styles.number}>
+            {pioneer_number === null ? 'Claimed' : `#${String(pioneer_number).padStart(4, '0')}`}
+          </Data>
+          <Small style={{ color: 'rgba(242,242,238,0.72)', textAlign: 'center', marginTop: 2, fontSize: 10.5 }}>
+            {pioneer_number === null
+              ? 'The five hundred numbers here are gone, but the badge is yours.'
+              : 'Permanent. It never changes and never transfers.'}
+          </Small>
+        </Card>
+        <PointsBreakdown claimId={outcome.result.claim_id} />
+      </>
+    );
+  }
+
+  if (outcome.status === 'recorded') {
+    return (
+      <Card variant="flat" style={styles.card}>
+        <Label>Walk recorded</Label>
+        <Body style={{ textAlign: 'center', marginTop: 6 }}>
+          Nothing here to claim, but it counted for distance, time, and your league.
+        </Body>
       </Card>
     );
   }
@@ -252,6 +385,43 @@ function Outcome({ outcome }: { outcome: SyncOutcome | null }) {
   );
 }
 
+/**
+ * The permanent-XP total behind the pioneer card above, broken out by
+ * source (claim_points_breakdown(), 0021) — the same number `points_earned`
+ * already shows on a claimed pin in Explore, just itemized here instead of
+ * pre-summed. A separate component, not inlined in <Outcome>, so its query
+ * only ever mounts once the claim has actually landed.
+ */
+function PointsBreakdown({ claimId }: { claimId: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['claim-points', claimId],
+    queryFn: () => claimPointsBreakdown(claimId),
+  });
+
+  // Silent while loading and on a failed fetch alike: a wrong or half-drawn
+  // number here would contradict the one promise this whole screen makes
+  // (see the file header) — better to say nothing than to guess.
+  if (isLoading || !data || data.length === 0) return null;
+
+  const total = data.reduce((sum, row) => sum + row.amount, 0);
+  const bySource = new Map(data.map((row) => [row.source, row.amount]));
+
+  return (
+    <Card variant="flat" style={[styles.card, styles.pointsCard]}>
+      <View style={styles.pointsHeader}>
+        <Label>Points earned</Label>
+        <Data style={{ fontSize: 16 }}>{total}</Data>
+      </View>
+      {SOURCE_ORDER.filter((source) => bySource.has(source)).map((source) => (
+        <View key={source} style={styles.pointsRow}>
+          <Small>{SOURCE_LABEL[source]}</Small>
+          <Small style={{ color: colour.ink2 }}>+{bySource.get(source)}</Small>
+        </View>
+      ))}
+    </Card>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -262,10 +432,19 @@ const styles = StyleSheet.create({
   title: { textAlign: 'center', marginTop: 10 },
   result: { alignSelf: 'stretch', marginTop: 26 },
   card: { alignItems: 'center' },
+  claimCard: { marginTop: 10, paddingVertical: 10, paddingHorizontal: 14 },
   number: {
-    fontSize: 44,
+    fontSize: 32,
     color: colour.sand,
-    marginTop: 4,
-    letterSpacing: -1,
+    marginTop: 2,
+    letterSpacing: -0.6,
+  },
+  pointsCard: { alignItems: 'stretch', marginTop: 10, paddingVertical: 10, paddingHorizontal: 14 },
+  pointsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  pointsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
   },
 });

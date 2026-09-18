@@ -47,6 +47,14 @@ export async function stopTrek(_trekId: string): Promise<void> {
   // No recording was started, so there is nothing to stop.
 }
 
+export async function pauseTrek(): Promise<void> {
+  // No recording was started, so there is nothing to pause.
+}
+
+export async function resumeTrek(): Promise<void> {
+  // No recording was started, so there is nothing to resume.
+}
+
 export function getTrekPoints(_trekId: string): LocalPoint[] {
   return [];
 }

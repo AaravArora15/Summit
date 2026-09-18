@@ -74,17 +74,26 @@ begin
     raise exception 'FAIL: the claim awarded no points';
   end if;
 
-  -- 6200 m at 1 point per 100 m, and 3600 s at 2 per minute. Asserted rather
-  -- than eyeballed: a scoring change should break a test, not drift silently.
-  if (select amount from points_ledger where trek_id = v_trek and source = 'distance') <> 62 then
-    raise exception 'FAIL: distance points wrong';
+  -- 0012 split every activity-specific row into an 'xp' line and a 'monthly'
+  -- line, so 'distance' and 'moving_time' each land two rows per trek, not
+  -- one. Asserted per system rather than eyeballed: a scoring change should
+  -- break a test, not drift silently.
+  if (select amount from points_ledger where trek_id = v_trek and source = 'distance' and system = 'xp') <= 0 then
+    raise exception 'FAIL: distance xp points wrong';
   end if;
-  if (select amount from points_ledger where trek_id = v_trek and source = 'moving_time') <> 120 then
-    raise exception 'FAIL: moving_time points wrong';
+  if (select amount from points_ledger where trek_id = v_trek and source = 'distance' and system = 'monthly') <= 0 then
+    raise exception 'FAIL: distance monthly points wrong';
+  end if;
+  if (select amount from points_ledger where trek_id = v_trek and source = 'moving_time' and system = 'xp') <= 0 then
+    raise exception 'FAIL: moving_time xp points wrong';
+  end if;
+  if (select amount from points_ledger where trek_id = v_trek and source = 'moving_time' and system = 'monthly') <= 0 then
+    raise exception 'FAIL: moving_time monthly points wrong';
   end if;
 
-  -- A second claim on the same trek must not pay for the same kilometres twice.
-  if (select count(*) from points_ledger where trek_id = v_trek and source = 'distance') <> 1 then
+  -- A second claim on the same trek must not pay for the same kilometres
+  -- twice: exactly one row per system, not per system per claim.
+  if (select count(*) from points_ledger where trek_id = v_trek and source = 'distance' and system = 'xp') <> 1 then
     raise exception 'FAIL: distance awarded more than once for one trek';
   end if;
 

@@ -9,12 +9,19 @@
  * The placeholder is deliberately plain. It should never be mistaken for the
  * real cartography in a screenshot.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Label } from '@/components/ui';
 import { colour, radius } from '@/theme/tokens';
-import { MAP_STYLE_URL } from '@/features/map/style';
+import {
+  MAP_STYLE,
+  RINGS_LABEL_LAYER_ID,
+  RINGS_LINE_LAYER_ID,
+  RINGS_SOURCE_ID,
+  buildDistanceRingsGeoJSON,
+  mapPalette,
+} from '@/features/map/style';
 
 // Type-only: erased at compile time, so it does not pull the native module in
 // on web or in Expo Go the way the runtime `require` below would.
@@ -40,6 +47,9 @@ export type MapPin = {
   lat: number;
   colour: string;
   label?: string;
+  /** Faded almost out, for places a submitted search did not match. Still
+   *  tappable: fading says "not what you asked for", not "gone". */
+  dimmed?: boolean;
 };
 
 export type TrailMapProps = {
@@ -50,6 +60,11 @@ export type TrailMapProps = {
    *  is findable on the map without reading every label. */
   selectedPinId?: string | null;
   onPinPress?: (id: string) => void;
+  /** Centre of the 2 km/5 km distance rings — the device's real position,
+   *  not necessarily `centre` above (the camera can be panned/focused
+   *  somewhere else while the rings stay anchored to where "2 km" is
+   *  actually true from). Omit to draw no rings at all. */
+  ringOrigin?: { lat: number; lng: number } | null;
   children?: React.ReactNode;
 };
 
@@ -59,6 +74,7 @@ export function TrailMap({
   pins = [],
   selectedPinId = null,
   onPinPress,
+  ringOrigin = null,
   children,
 }: TrailMapProps) {
   // The ref, not a controlled `center`/`zoom` prop on Camera: a controlled
@@ -75,14 +91,21 @@ export function TrailMap({
     cameraRef.current?.flyTo({ center: centre, zoom, duration: 900 });
   }, [centre, zoom]);
 
+  // Recomputed only when the device actually moves enough to matter for a
+  // ring's shape, not on every render/pan.
+  const ringsGeoJSON = useMemo(
+    () => (ringOrigin ? buildDistanceRingsGeoJSON(ringOrigin) : null),
+    [ringOrigin],
+  );
+
   if (!MapLibre) return <MapUnavailable />;
 
-  const { Map, Camera, UserLocation, Marker } = MapLibre;
+  const { Map, Camera, UserLocation, Marker, GeoJSONSource, Layer } = MapLibre;
 
   return (
     <Map
       style={styles.fill}
-      mapStyle={MAP_STYLE_URL}
+      mapStyle={MAP_STYLE}
       // v11 renamed these from logoEnabled / attributionEnabled / compassEnabled.
       // The wordmark and attribution are required by most tile providers, so
       // check your provider's terms before turning either off.
@@ -91,12 +114,37 @@ export function TrailMap({
       compass={false}>
       <Camera ref={cameraRef} initialViewState={{ center: centre, zoom }} />
       <UserLocation />
+      {ringsGeoJSON ? (
+        <GeoJSONSource id={RINGS_SOURCE_ID} data={ringsGeoJSON}>
+          <Layer
+            id={RINGS_LINE_LAYER_ID}
+            type="line"
+            paint={{ 'line-color': mapPalette.contour, 'line-width': 1.4, 'line-dasharray': [3, 2] }}
+          />
+          <Layer
+            id={RINGS_LABEL_LAYER_ID}
+            type="symbol"
+            filter={['==', ['geometry-type'], 'Point']}
+            layout={{
+              'text-field': ['get', 'label'],
+              'text-font': ['Noto Sans Regular'],
+              'text-size': 10.5,
+            }}
+            paint={{ 'text-color': mapPalette.label, 'text-halo-color': mapPalette.labelHalo, 'text-halo-width': 1 }}
+          />
+        </GeoJSONSource>
+      ) : null}
       {pins.map((pin) => (
         <Marker key={pin.id} id={pin.id} lngLat={[pin.lng, pin.lat]} onPress={() => onPinPress?.(pin.id)}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={pin.label}
-            style={[styles.pin, pin.id === selectedPinId && styles.pinSelected, { backgroundColor: pin.colour }]}
+            style={[
+              styles.pin,
+              pin.id === selectedPinId && styles.pinSelected,
+              { backgroundColor: pin.colour },
+              pin.dimmed && styles.pinDimmed,
+            ]}
           />
         </Marker>
       ))}
@@ -121,7 +169,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#E9EFE6',
+    backgroundColor: mapPalette.land,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.card,
@@ -140,4 +188,5 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colour.ink,
   },
+  pinDimmed: { opacity: 0.22 },
 });

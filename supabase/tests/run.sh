@@ -47,7 +47,24 @@ if [ "$FAST" != "--fast" ]; then
            migrations/0007_explore_map.sql migrations/0008_league_rollover.sql \
            migrations/0009_set_detail.sql migrations/0010_location_points.sql \
            migrations/0011_location_elevation.sql migrations/0012_points_split.sql \
-           seed/0001_singapore_locations.sql seed/0002_singapore_trails.sql seed/0003_singapore_no_go.sql; do
+           migrations/0013_badges_and_treks.sql \
+           migrations/0014_location_suggestions.sql \
+           migrations/0015_untargeted_trek_scoring.sql \
+           migrations/0016_groups.sql \
+           migrations/0017_rename.sql \
+           migrations/0018_speed_window.sql \
+           migrations/0020_location_status_note.sql \
+           migrations/0021_claim_points_breakdown.sql \
+           migrations/0022_titles_and_review.sql \
+           migrations/0023_badge_run_stats.sql \
+           migrations/0024_daily_wildcard.sql \
+           migrations/0025_territories.sql \
+           migrations/0026_wildcard_same_country.sql \
+           migrations/0027_league_rollover_reenroll.sql \
+           seed/0001_world_locations.sql \
+           seed/0004_territories.sql \
+           seed/0005_macritchie_signage.sql \
+           seed/0006_location_country_codes.sql; do
     load "$f"
   done
 fi
@@ -61,7 +78,7 @@ echo
 
 # --------------------------------------------------------------------------
 echo "=== What gets refused ==="
-LOC=$(val "select id from locations where slug='bukittimahhill';")
+LOC=$(val "select id from locations where slug='everestbasecamptrek';")
 
 # $2 is the make_trek argument list verbatim:
 #   realistic, altitude, speed_mps, flat_altitude
@@ -140,8 +157,8 @@ race() {
        from claims where location_id='$loc'::uuid;"
 }
 
-race gangsahill  500 30 "30 at once, cap 500  -> expect 1..30, 0 duplicates"
-race granitehill 5   12 "12 at once, cap 5    -> expect 5 numbered, 7 explorer"
+race annapurnacircuit 500 30 "30 at once, cap 500  -> expect 1..30, 0 duplicates"
+race threepassestrek  5   12 "12 at once, cap 5    -> expect 5 numbered, 7 explorer"
 echo
 
 # --------------------------------------------------------------------------
@@ -157,6 +174,80 @@ echo "=== Scoring and league placement ==="
 # that died on its first statement printed an empty section and the run carried
 # on looking green, which is worse than having no test at all.
 q -f tests/30_points_and_league.sql 2>&1 |
+  grep -E "NOTICE:|ERROR:|FAIL" |
+  sed -E 's/^psql:[^:]+:[0-9]+: (NOTICE|ERROR):  /  /'
+echo
+
+# --------------------------------------------------------------------------
+echo
+echo "=== Groups ==="
+
+q -f tests/40_groups.sql 2>&1 |
+  grep -E "NOTICE:|ERROR:|FAIL" |
+  sed -E 's/^psql:[^:]+:[0-9]+: (NOTICE|ERROR):  /  /'
+echo
+
+# --------------------------------------------------------------------------
+echo
+echo "=== Renaming ==="
+
+q -f tests/50_rename.sql 2>&1 |
+  grep -E "NOTICE:|ERROR:|FAIL" |
+  sed -E 's/^psql:[^:]+:[0-9]+: (NOTICE|ERROR):  /  /'
+echo
+
+echo "=== Speed gating ==="
+
+q -f tests/60_speed.sql 2>&1 |
+  grep -E "NOTICE:|ERROR:|FAIL" |
+  sed -E 's/^psql:[^:]+:[0-9]+: (NOTICE|ERROR):  /  /'
+echo
+
+echo "=== Location status ==="
+
+q -f tests/70_location_status.sql 2>&1 |
+  grep -E "NOTICE:|ERROR:|FAIL" |
+  sed -E 's/^psql:[^:]+:[0-9]+: (NOTICE|ERROR):  /  /'
+echo
+
+echo "=== Claim points breakdown ==="
+
+q -f tests/80_claim_points_breakdown.sql 2>&1 |
+  grep -E "NOTICE:|ERROR:|FAIL" |
+  sed -E 's/^psql:[^:]+:[0-9]+: (NOTICE|ERROR):  /  /'
+echo
+
+echo "=== Titles and suggestion review ==="
+
+q -f tests/90_titles_and_review.sql 2>&1 |
+  grep -E "NOTICE:|ERROR:|FAIL" |
+  sed -E 's/^psql:[^:]+:[0-9]+: (NOTICE|ERROR):  /  /'
+echo
+
+echo "=== Badge run stats ==="
+
+q -f tests/100_claim_run_stats.sql 2>&1 |
+  grep -E "NOTICE:|ERROR:|FAIL" |
+  sed -E 's/^psql:[^:]+:[0-9]+: (NOTICE|ERROR):  /  /'
+echo
+
+echo "=== Wildcard ==="
+
+q -f tests/110_wildcard.sql 2>&1 |
+  grep -E "NOTICE:|ERROR:|FAIL" |
+  sed -E 's/^psql:[^:]+:[0-9]+: (NOTICE|ERROR):  /  /'
+echo
+
+echo "=== Capture Territory ==="
+
+q -f tests/120_territories.sql 2>&1 |
+  grep -E "NOTICE:|ERROR:|FAIL" |
+  sed -E 's/^psql:[^:]+:[0-9]+: (NOTICE|ERROR):  /  /'
+echo
+
+echo "=== League rollover re-enrollment ==="
+
+q -f tests/130_league_rollover.sql 2>&1 |
   grep -E "NOTICE:|ERROR:|FAIL" |
   sed -E 's/^psql:[^:]+:[0-9]+: (NOTICE|ERROR):  /  /'
 echo

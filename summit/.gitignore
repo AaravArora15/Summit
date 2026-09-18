@@ -36,6 +36,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# scripts/seed-csv.mjs's Nominatim/elevation cache — regenerable, not source
+scripts/.geocode-cache.json
+
 example
 
 # generated native folders

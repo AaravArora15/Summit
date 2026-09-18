@@ -11,38 +11,25 @@
  * on the surface it reassures about.
  */
 import { LinearGradient } from 'expo-linear-gradient';
-import type { ReactNode } from 'react';
+import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Badge } from '@/components/badge';
 import { TrophyRoad } from '@/components/trophy-road';
-import {
-  CalendarIcon,
-  ChevronIcon,
-  DropIcon,
-  FortIcon,
-  HomeIcon,
-  SettingsIcon,
-  SummitMark,
-} from '@/components/icons';
+import { CalendarIcon, ChevronIcon, PlusIcon, SettingsIcon } from '@/components/icons';
 import { Avatar, Card, Chip, Data, H2, H3, IconButton, Label, Small } from '@/components/ui';
+import { Skeleton } from '@/components/skeleton';
 import { useProfile, useRecentBadges } from '@/lib/queries';
 import { colour, rarityColour, size, space } from '@/theme/tokens';
 
-const GLYPHS: Record<string, ReactNode> = {
-  summit: <SummitMark size={22} color={colour.sand} />,
-  fort: <FortIcon size={20} color={colour.n50} />,
-  drop: <DropIcon size={20} color={colour.n50} />,
-  ridge: <HomeIcon size={20} color={colour.n50} />,
-};
-
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { data: profile } = useProfile();
+  const router = useRouter();
+  const { data: profile, isLoading: profileLoading } = useProfile();
   // Four slots, and the fifth is left empty on purpose: an empty space is a
   // question, a locked badge is an invitation.
-  const { data: featured } = useRecentBadges(4);
+  const { data: featured, isLoading: featuredLoading } = useRecentBadges(4);
   const { level, xp, xpToNextLevel } = profile;
   const progress = xpToNextLevel > 0 ? xp / xpToNextLevel : 0;
 
@@ -66,70 +53,86 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Label>Explorer passport</Label>
-          <IconButton label="Settings">
+          <IconButton label="Settings" onPress={() => router.push('/settings')}>
             <SettingsIcon size={18} color={colour.ink} />
           </IconButton>
         </View>
 
-        {/* The rust ring around the avatar marks a founding pioneer. It is the
-            one decoration on the screen and it is earned. */}
-        <View style={styles.identity}>
-          <View style={profile.isFounding ? styles.avatarRing : styles.avatarPlain}>
-            <Avatar initials={profile.initials} size={84} />
-          </View>
-          <H2 style={{ marginTop: 9 }}>{profile.name}</H2>
-          {profile.title ? <Chip label={profile.title} small tone="ink" /> : null}
-          <Data style={styles.passportNumber}>
-            {profile.explorerNumber !== null
-              ? `Explorer #${String(profile.explorerNumber).padStart(4, '0')} · ${profile.standing}`
-              : profile.standing}
-          </Data>
-        </View>
+        {profileLoading ? (
+          <ProfileIdentitySkeleton />
+        ) : (
+          <>
+            {/* The rust ring around the avatar marks a founding pioneer. It is
+                the one decoration on the screen and it is earned. */}
+            <View style={styles.identity}>
+              <View style={profile.isFounding ? styles.avatarRing : styles.avatarPlain}>
+                <Avatar initials={profile.initials} size={84} />
+              </View>
+              <H2 style={{ marginTop: 9 }}>{profile.name}</H2>
+              {profile.title ? <Chip label={profile.title} small tone="ink" /> : null}
+              <Data style={styles.passportNumber}>
+                {profile.explorerNumber !== null
+                  ? `Explorer #${String(profile.explorerNumber).padStart(4, '0')} · ${profile.standing}`
+                  : profile.standing}
+              </Data>
+            </View>
 
-        <Card style={{ padding: 14, paddingVertical: 13 }}>
-          <View style={[styles.row, { marginBottom: 13 }]}>
-            <H3>Explorer Level {level}</H3>
-            <Data style={{ fontSize: 13, color: colour.ok }}>{Math.round(progress * 100)}%</Data>
-          </View>
-          <TrophyRoad level={level} progress={progress} />
-          <View style={[styles.row, { marginTop: 13 }]}>
-            <Label>
-              {xp.toLocaleString()} / {xpToNextLevel.toLocaleString()} XP
-            </Label>
-            <Label>XP never resets</Label>
-          </View>
-        </Card>
-
-        {/* Four systems, four counters. */}
-        <View style={styles.counters}>
-          {profile.counters.map((counter) => (
-            <Card key={counter.label} style={styles.counter}>
-              <Data style={{ fontSize: 18 }}>{counter.value}</Data>
-              <Label style={{ letterSpacing: 0.57 }}>{counter.label}</Label>
+            <Card style={{ padding: 14, paddingVertical: 13 }}>
+              <View style={[styles.row, { marginBottom: 13 }]}>
+                <H3>Explorer Level {level}</H3>
+                <Data style={{ fontSize: 13, color: colour.ok }}>{Math.round(progress * 100)}%</Data>
+              </View>
+              <TrophyRoad level={level} progress={progress} />
+              <View style={[styles.row, { marginTop: 13 }]}>
+                <Label>
+                  {xp.toLocaleString()} / {xpToNextLevel.toLocaleString()} XP
+                </Label>
+                <Label>XP never resets</Label>
+              </View>
             </Card>
-          ))}
-        </View>
+
+            {/* Four systems, four counters. */}
+            <View style={styles.counters}>
+              {profile.counters.map((counter) => (
+                <Card key={counter.label} style={styles.counter}>
+                  <Data style={{ fontSize: 18 }}>{counter.value}</Data>
+                  <Label style={{ letterSpacing: 0.57 }}>{counter.label}</Label>
+                </Card>
+              ))}
+            </View>
+          </>
+        )}
 
         {/* The empty slot is the invitation, so it stays visible. */}
         <View style={styles.section}>
           <Label>Featured</Label>
           <View style={styles.badgeRow}>
-            {featured.map((badge) => (
-              <Badge
-                key={badge.id}
-                band={badge.band}
-                tint={rarityColour[badge.rarity]}
-                glyph={GLYPHS[badge.glyph]}
-              />
-            ))}
-            {/* The empty slot is the invitation, so at least one always shows. */}
-            {Array.from({ length: Math.max(1, 5 - featured.length) }, (_, i) => (
-              <Badge key={`empty-${i}`} band="Empty" state="locked" />
-            ))}
+            {featuredLoading
+              ? Array.from({ length: 5 }, (_, i) => (
+                  <Skeleton key={i} width={52} height={64} radius={10} />
+                ))
+              : [
+                  ...featured.map((badge) => (
+                    <Pressable
+                      key={badge.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${badge.band} badge. Show on map`}
+                      onPress={() =>
+                        router.navigate({ pathname: '/explore', params: { location: badge.locationId } })
+                      }
+                      style={({ pressed }) => pressed && { opacity: 0.6 }}>
+                      <Badge band={badge.band} tint={rarityColour[badge.rarity]} glyph={badge.glyph} />
+                    </Pressable>
+                  )),
+                  /* The empty slot is the invitation, so at least one always shows. */
+                  ...Array.from({ length: Math.max(1, 5 - featured.length) }, (_, i) => (
+                    <Badge key={`empty-${i}`} band="Empty" state="locked" />
+                  )),
+                ]}
           </View>
         </View>
 
-        <Pressable accessibilityRole="button">
+        <Pressable accessibilityRole="button" onPress={() => router.push('/treks')}>
           {({ pressed }) => (
             <Card variant="flat" style={[styles.journal, pressed && { opacity: 0.8 }]}>
               <View style={styles.journalLabel}>
@@ -142,8 +145,62 @@ export default function ProfileScreen() {
             </Card>
           )}
         </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/suggestions')}
+          style={{ marginTop: 9 }}>
+          {({ pressed }) => (
+            <Card variant="flat" style={[styles.journal, pressed && { opacity: 0.8 }]}>
+              <View style={styles.journalLabel}>
+                <PlusIcon size={16} color={colour.forest} />
+                <Small style={{ color: colour.ink }}>My suggestions</Small>
+              </View>
+              <ChevronIcon size={15} color={colour.muted} />
+            </Card>
+          )}
+        </Pressable>
       </ScrollView>
     </View>
+  );
+}
+
+function ProfileIdentitySkeleton() {
+  return (
+    <>
+      <View style={styles.identity}>
+        <Skeleton width={84} height={84} radius={42} />
+        <View style={{ marginTop: 11 }}>
+          <Skeleton height={17} width={130} radius={4} />
+        </View>
+        <View style={{ marginTop: 8 }}>
+          <Skeleton height={10} width={170} radius={4} />
+        </View>
+      </View>
+
+      <Card style={{ padding: 14, paddingVertical: 13 }}>
+        <View style={[styles.row, { marginBottom: 13 }]}>
+          <Skeleton height={15} width={130} radius={4} />
+          <Skeleton height={13} width={30} radius={4} />
+        </View>
+        <Skeleton height={10} width="100%" radius={99} />
+        <View style={[styles.row, { marginTop: 13 }]}>
+          <Skeleton height={9} width={90} radius={4} />
+          <Skeleton height={9} width={80} radius={4} />
+        </View>
+      </Card>
+
+      <View style={styles.counters}>
+        {[0, 1, 2, 3].map((i) => (
+          <Card key={i} style={styles.counter}>
+            <Skeleton height={17} width={24} radius={4} />
+            <View style={{ marginTop: 6 }}>
+              <Skeleton height={8} width={44} radius={4} />
+            </View>
+          </Card>
+        ))}
+      </View>
+    </>
   );
 }
 

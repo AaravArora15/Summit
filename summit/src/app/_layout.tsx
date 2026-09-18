@@ -9,8 +9,10 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useSession } from '@/features/auth/session';
+import { bootstrapInactivityNudge } from '@/features/trek/inactivity-nudge';
 import { initTrekStore, isTrekStoreAvailable } from '@/features/trek/recorder';
 import { syncPendingTreks } from '@/features/trek/sync';
+import { configurePurchases, syncPurchasesIdentity } from '@/lib/purchases';
 import { colour } from '@/theme/tokens';
 
 SplashScreen.preventAutoHideAsync();
@@ -53,6 +55,13 @@ export default function RootLayout() {
   }, [fontsLoaded]);
 
   useEffect(() => {
+    // As early as possible, deliberately before any session is known — see
+    // lib/purchases.ts on why AuthGate links the real user id in later
+    // rather than this waiting on it. A no-op if no RevenueCat keys are set.
+    configurePurchases();
+  }, []);
+
+  useEffect(() => {
     // Local trek storage, then drain anything left over from a previous walk.
     // Both are best-effort: a phone that cannot open the database should still
     // reach the rest of the app.
@@ -86,7 +95,18 @@ export default function RootLayout() {
             <Stack.Screen name="trek/live" options={{ gestureEnabled: false }} />
             <Stack.Screen name="trek/arrival" options={{ gestureEnabled: false }} />
             <Stack.Screen name="set/[id]" />
+            <Stack.Screen name="territory/[id]" />
+            <Stack.Screen name="badges" />
+            <Stack.Screen name="settings" />
+            <Stack.Screen name="treks" />
+            <Stack.Screen name="suggest" />
+            <Stack.Screen name="suggestions" />
+            <Stack.Screen name="review" />
             <Stack.Screen name="sign-in" options={{ gestureEnabled: false }} />
+            {/* The other half of the gate: sign-up for new accounts, log-in
+                for existing ones. Both sit outside the tabs by design. */}
+            <Stack.Screen name="log-in" />
+            <Stack.Screen name="sign-up" />
           </Stack>
         </QueryClientProvider>
       </SafeAreaProvider>
@@ -112,9 +132,27 @@ function AuthGate() {
   const router = useRouter();
 
   useEffect(() => {
+    // Links RevenueCat's customer to Summit's own user id the moment a
+    // session exists — an anonymous Supabase user is still a real,
+    // permanent id here (see features/auth/session.ts), so there is no
+    // "wait for a real account" case to special-case.
+    if (session.status === 'signed-in') void syncPurchasesIdentity(session.userId);
+    // (Re)arms the inactivity reminder from whatever "last trek" is already
+    // known, local or server — see inactivity-nudge.ts. Runs every time this
+    // effect fires, not just once: cheap (a local read, no-op on the common
+    // path where AsyncStorage already has a value), and correct after a
+    // sign-out/sign-in switches accounts on the same device, since the
+    // stored key is per-user.
+    if (session.status === 'signed-in') void bootstrapInactivityNudge(session.userId);
+  }, [session]);
+
+  useEffect(() => {
     if (session.status === 'loading' || session.status === 'unconfigured') return;
 
-    const atGate = segments[0] === 'sign-in';
+    // All three auth screens sit outside the tabs; a signed-out user is
+    // welcome on any of them, and only the app itself requires a session.
+    const atGate =
+      segments[0] === 'sign-in' || segments[0] === 'log-in' || segments[0] === 'sign-up';
 
     if (session.status === 'signed-out' && !atGate) {
       router.replace('/sign-in');

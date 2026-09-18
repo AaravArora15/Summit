@@ -59,14 +59,19 @@ export const rarityColour = {
 
 export type Rarity = keyof typeof rarityColour;
 
-/** Set colours appear only on set surfaces (deed caps, stripes), never on pins. */
+/**
+ * Set colours appear only on set surfaces (deed caps, stripes), never on pins.
+ * Keys match location_sets.key from scripts/seed-csv.mjs, which collapses the
+ * CSV's ~19 raw trek types into these 7.
+ */
 export const setColour = {
-  rainforest: '#35604A',
-  reservoir: '#46707F',
+  summit: '#4A4740',
+  trail: '#35604A',
+  expedition: '#6E7B88',
   coastal: '#C7A15A',
-  heritage: '#4A4740',
-  urban: '#6E7B88',
-  islands: '#7A9E4F',
+  canyon: '#B5651D',
+  park: '#46707F',
+  urban: '#7A9E4F',
 } as const;
 
 export type SetKey = keyof typeof setColour;
@@ -178,5 +183,13 @@ export function darken(hex: string, amount: number) {
   const [r, g, b] = channels(hex);
   const k = 1 - Math.max(0, Math.min(1, amount));
   const hx = (v: number) => Math.round(v * k).toString(16).padStart(2, '0');
+  return `#${hx(r)}${hx(g)}${hx(b)}`;
+}
+
+/** Mix toward white. Used for the badge medal's border ring and art body. */
+export function lighten(hex: string, amount: number) {
+  const [r, g, b] = channels(hex);
+  const k = Math.max(0, Math.min(1, amount));
+  const hx = (v: number) => Math.round(v + (255 - v) * k).toString(16).padStart(2, '0');
   return `#${hx(r)}${hx(g)}${hx(b)}`;
 }

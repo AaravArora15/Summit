@@ -8,27 +8,19 @@
  * elsewhere for a slot with no known contents. See the `faded` state on
  * <Badge> for why those two are not the same claim.
  *
- * Reached from Home's closest-set card and nowhere else yet; Collect's own
- * set-progress rows are a natural next link into this screen but were not
- * part of what was asked for this pass.
+ * Reached from Home's closest-set card and from every row of Collect's
+ * set-progress list.
  */
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Badge } from '@/components/badge';
-import { BackIcon, DropIcon, FortIcon, HomeIcon, TreeIcon } from '@/components/icons';
+import { BackIcon } from '@/components/icons';
+import { Skeleton } from '@/components/skeleton';
 import { Card, Data, H1, H2, IconButton, Label, ProgressBar, Small, Stripe } from '@/components/ui';
 import { SET_GLYPH, shortBand, useSetCompleteBonus, useSetLocations, useSetProgress } from '@/lib/queries';
 import { colour, rarityColour, space } from '@/theme/tokens';
-
-const GLYPHS: Record<string, ReactNode> = {
-  ridge: <HomeIcon size={19} color={colour.n50} />,
-  tree: <TreeIcon size={19} color={colour.n50} />,
-  fort: <FortIcon size={19} color={colour.n50} />,
-  drop: <DropIcon size={19} color={colour.n50} />,
-};
 
 export default function SetDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -46,7 +38,7 @@ export default function SetDetailScreen() {
 
   const held = locations.filter((l) => l.claimed);
   const missing = locations.filter((l) => !l.claimed);
-  const glyph = GLYPHS[(set && SET_GLYPH[set.key]) || 'ridge'];
+  const glyph = (set && SET_GLYPH[set.key]) || 'ridge';
   const tint = set?.tint ?? colour.forest;
 
   return (
@@ -102,37 +94,66 @@ export default function SetDetailScreen() {
             </View>
           </Card>
 
-          {held.length > 0 ? (
+          {isLoading ? (
+            <View style={styles.section}>
+              <Skeleton height={11} width={90} radius={4} />
+              <View style={styles.grid}>
+                {Array.from({ length: 6 }, (_, i) => (
+                  <Skeleton key={i} width={64} height={79} radius={10} />
+                ))}
+              </View>
+            </View>
+          ) : held.length > 0 ? (
             <View style={styles.section}>
               <Label>Collected · {held.length}</Label>
               <View style={styles.grid}>
                 {held.map((l) => (
-                  <Badge
+                  <Pressable
                     key={l.id}
-                    band={shortBand(l.name)}
-                    tint={rarityColour[l.rarity]}
-                    glyph={glyph}
-                    width={64}
-                  />
+                    accessibilityRole="button"
+                    accessibilityLabel={`${l.name}, collected. Show on map`}
+                    onPress={() => router.navigate({ pathname: '/explore', params: { location: l.id } })}
+                    style={({ pressed }) => pressed && { opacity: 0.6 }}>
+                    <Badge band={shortBand(l.name)} tint={rarityColour[l.rarity]} glyph={glyph} width={64} />
+                  </Pressable>
                 ))}
               </View>
             </View>
           ) : null}
 
-          {missing.length > 0 ? (
+          {isLoading ? null : missing.length > 0 ? (
             <View style={styles.section}>
               <Label>Missing · {missing.length}</Label>
               <View style={styles.grid}>
-                {missing.map((l) => (
-                  <Badge
-                    key={l.id}
-                    band={shortBand(l.name)}
-                    tint={rarityColour[l.rarity]}
-                    glyph={glyph}
-                    state="faded"
-                    width={64}
-                  />
-                ))}
+                {missing.map((l) => {
+                  const closed = l.status !== 'open';
+                  const closedWord = l.status === 'closed' ? 'Closed' : 'Seasonal';
+                  return (
+                    <Pressable
+                      key={l.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        closed
+                          ? `${l.name}, not yet collected, currently ${closedWord.toLowerCase()}. Show on map`
+                          : `${l.name}, not yet collected. Show on map`
+                      }
+                      onPress={() => router.navigate({ pathname: '/explore', params: { location: l.id } })}
+                      style={({ pressed }) => [{ alignItems: 'center' }, pressed && { opacity: 0.6 }]}>
+                      <Badge
+                        band={shortBand(l.name)}
+                        tint={rarityColour[l.rarity]}
+                        glyph={glyph}
+                        state="faded"
+                        width={64}
+                      />
+                      {closed ? (
+                        <Small style={{ marginTop: 3, color: l.status === 'closed' ? colour.stop : colour.warn }}>
+                          {closedWord}
+                        </Small>
+                      ) : null}
+                    </Pressable>
+                  );
+                })}
               </View>
             </View>
           ) : held.length > 0 ? (

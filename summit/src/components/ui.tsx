@@ -7,8 +7,18 @@
  *     is a tight rounded rectangle.
  */
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import { ChevronIcon } from '@/components/icons';
 import { colour, font, radius, size, space, type, withAlpha } from '@/theme/tokens';
@@ -100,6 +110,10 @@ type ButtonProps = {
   chevron?: boolean;
   full?: boolean;
   small?: boolean;
+  /** Swaps the label and chevron for a spinner, in the same tint, and stops
+   *  taking presses — for an action already in flight, so a second tap can't
+   *  fire the same request twice. */
+  loading?: boolean;
 };
 
 export function Button({
@@ -109,6 +123,7 @@ export function Button({
   chevron = false,
   full = false,
   small = false,
+  loading = false,
 }: ButtonProps) {
   const isPrimary = variant === 'primary';
   const tint =
@@ -117,7 +132,8 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
-      onPress={onPress}
+      accessibilityState={{ disabled: loading }}
+      onPress={loading ? undefined : onPress}
       style={({ pressed }) => [
         styles.button,
         // The pill is reserved for the primary CTA. Secondary actions are rects.
@@ -127,10 +143,16 @@ export function Button({
         full && { width: '100%' },
         pressed && { opacity: 0.85 },
       ]}>
-      <Text style={[styles.buttonLabel, { color: tint, fontSize: small ? 13 : 14.5 }]}>
-        {label}
-      </Text>
-      {chevron ? <ChevronIcon size={18} color={tint} /> : null}
+      {loading ? (
+        <ActivityIndicator color={tint} size="small" />
+      ) : (
+        <>
+          <Text style={[styles.buttonLabel, { color: tint, fontSize: small ? 13 : 14.5 }]}>
+            {label}
+          </Text>
+          {chevron ? <ChevronIcon size={18} color={tint} /> : null}
+        </>
+      )}
     </Pressable>
   );
 }
@@ -411,10 +433,14 @@ export function Segmented<T extends string>({
   options,
   value,
   onChange,
+  dotOn,
 }: {
   options: readonly T[];
   value: T;
   onChange: (next: T) => void;
+  /** Draws the attention dot on this segment -- for a join request waiting on
+   *  the leader, which should be visible from the League segment too. */
+  dotOn?: T | null;
 }) {
   return (
     <View style={styles.segmented} accessibilityRole="tablist">
@@ -428,9 +454,75 @@ export function Segmented<T extends string>({
             onPress={() => onChange(option)}
             style={[styles.segment, selected && styles.segmentOn]}>
             <Text style={[styles.segmentLabel, selected && styles.segmentLabelOn]}>{option}</Text>
+            {dotOn === option ? <View style={styles.segmentDot} /> : null}
           </Pressable>
         );
       })}
+    </View>
+  );
+}
+
+/**
+ * A card that rises from the bottom over a dimmed backdrop. Built on RN's own
+ * Modal rather than a custom overlay: it is the one primitive here that has
+ * to sit above the navigator, not just above other views in the same tree,
+ * and Modal is the one component that actually does that on both platforms.
+ */
+export function Sheet({
+  visible,
+  onClose,
+  children,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Close"
+        style={styles.sheetBackdrop}
+        onPress={onClose}
+      />
+      <View style={[styles.sheetCard, { paddingBottom: insets.bottom + 18 }]}>
+        <View style={styles.sheetGrab} />
+        {children}
+      </View>
+    </Modal>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Onboarding primitives                                                      */
+/* -------------------------------------------------------------------------- */
+
+export function StepDots({ step, total = 4 }: { step: number; total?: number }) {
+  return (
+    <View style={styles.stepDots}>
+      {Array.from({ length: total }).map((_, i) => (
+        <View
+          key={i}
+          style={[
+            styles.stepDot,
+            i === step ? styles.stepDotActive : styles.stepDotInactive,
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
+
+export function MountainHero({ height = 220 }: { height?: number }) {
+  return (
+    <View style={{ width: '100%', height, overflow: 'hidden' }}>
+      <Svg viewBox="0 0 390 220" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
+        <Path d="M-10 118 L66 84 120 100 198 46 268 88 336 66 400 86 V220 H-10Z" fill="#CFD9CA" />
+        <Path d="M-10 146 L52 122 112 134 182 88 250 124 316 102 400 120 V220 H-10Z" fill="#9BB29D" />
+        <Path d="M-10 172 L58 154 118 162 180 128 246 158 310 138 400 154 V220 H-10Z" fill="#3E6B51" />
+      </Svg>
     </View>
   );
 }
@@ -491,7 +583,6 @@ const styles = StyleSheet.create({
   },
   progressFill: { height: '100%', borderRadius: 99 },
 
-
   centre: { alignItems: 'center', justifyContent: 'center' },
   divider: { height: 1, backgroundColor: colour.line },
 
@@ -540,6 +631,15 @@ const styles = StyleSheet.create({
   segmentOn: { backgroundColor: colour.card, borderColor: colour.n200 },
   segmentLabel: { fontFamily: font.uiSemi, fontSize: 12, color: colour.muted },
   segmentLabelOn: { color: colour.ink },
+  segmentDot: {
+    position: 'absolute',
+    top: 6,
+    right: 12,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colour.warn,
+  },
 
   difficulty: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   peaks: { flexDirection: 'row', alignItems: 'flex-end', gap: 2.5, height: 12 },
@@ -553,4 +653,45 @@ const styles = StyleSheet.create({
     borderBottomColor: colour.ink,
   },
   difficultyLabel: { fontFamily: font.uiSemi, fontSize: 11, color: colour.ink },
+
+  stepDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  stepDot: {
+    height: 3.5,
+    borderRadius: 2,
+  },
+  stepDotActive: {
+    width: 24,
+    backgroundColor: colour.forest,
+  },
+  stepDotInactive: {
+    width: 14,
+    backgroundColor: colour.n200,
+  },
+
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(26,26,26,0.4)' },
+  sheetCard: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colour.bg,
+    borderTopLeftRadius: radius.sheet,
+    borderTopRightRadius: radius.sheet,
+    borderCurve: 'continuous',
+    paddingHorizontal: space.screenX,
+    paddingTop: 10,
+  },
+  sheetGrab: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colour.n200,
+    marginBottom: 14,
+  },
 });

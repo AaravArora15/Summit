@@ -103,6 +103,53 @@ export async function attachIdentity(provider: 'apple' | 'google'): Promise<void
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Create a real account: email, password, permanent identity.
+ *
+ * Whether a session comes back depends on the project's email confirmation
+ * setting. With confirmation on, Supabase creates the user but holds the
+ * session until the emailed link is clicked -- the caller must surface that,
+ * because silently staying on a form that "did nothing" reads as broken.
+ */
+export async function signUpWithEmail(
+  email: string,
+  password: string,
+): Promise<{ needsConfirmation: boolean }> {
+  const { data, error } = await getSupabase().auth.signUp({ email, password });
+  if (error) throw new Error(error.message);
+  return { needsConfirmation: !data.session };
+}
+
+/**
+ * Log into an account that already exists (created via signUpWithEmail or
+ * the dashboard). The session replaces whatever was here: a fresh tab holds no
+ * identity worth preserving, so there is nothing to merge.
+ */
+export async function signInWithEmail(email: string, password: string): Promise<void> {
+  const { error } = await getSupabase().auth.signInWithPassword({ email, password });
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Give the current guest an email and password, so its pioneer numbers survive
+ * the app being deleted -- and can be logged into from another window or phone
+ * at all. Runs against the signed-in anonymous user, which is why the claims
+ * stay attached; this is the email-and-password twin of attachIdentity.
+ *
+ * Returns whether the project's email confirmation setting left the address
+ * provisional: when confirmation is on, the credentials work for sign-in only
+ * after the link in the email is clicked, and saying nothing about that sends
+ * someone into a "Invalid login credentials" loop with no idea why.
+ */
+export async function attachCredentials(
+  email: string,
+  password: string,
+): Promise<{ needsConfirmation: boolean }> {
+  const { data, error } = await getSupabase().auth.updateUser({ email, password });
+  if (error) throw new Error(error.message);
+  return { needsConfirmation: !data.user?.email_confirmed_at };
+}
+
 export async function signOut(): Promise<void> {
   await getSupabase().auth.signOut();
 }
