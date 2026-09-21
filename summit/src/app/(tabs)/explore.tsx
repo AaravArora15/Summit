@@ -50,6 +50,7 @@ import { Body, Button, Card, Chip, Data, Difficulty, H2, H3, IconButton, Label, 
 import { Skeleton } from '@/components/skeleton';
 import { useSession } from '@/features/auth/session';
 import { TrailMap, type MapPin } from '@/features/map/trail-map';
+import { TerritoryLayer } from '@/features/map/territory-layer';
 import { haversineM } from '@/features/trek/distance';
 import { fakeClaimNearby, stashDevFakeOutcome } from '@/features/trek/dev-fake-claim';
 import { beginTrekSession } from '@/features/trek/start';
@@ -57,7 +58,7 @@ import { useTrek } from '@/features/trek/store';
 import { confirmUser } from '@/lib/alert';
 import { DEMO_CENTRE, demoLocationsNear } from '@/lib/demo-data';
 import { presentPaywall, usePro } from '@/lib/purchases';
-import { SET_GLYPH, shortBand, useProfile, useSetProgress } from '@/lib/queries';
+import { SET_GLYPH, shortBand, useProfile, useSetProgress, useTerritoryMapData } from '@/lib/queries';
 import {
   isSupabaseConfigured,
   locationsNear,
@@ -293,6 +294,9 @@ export default function ExploreScreen() {
     retry: false,
   });
   const fences = useMemo(() => secretFences ?? [], [secretFences]);
+
+  const { data: territoryData } = useTerritoryMapData();
+  const territories = useMemo(() => territoryData ?? [], [territoryData]);
 
   const rows = useMemo(
     () => (isSupabaseConfigured ? data : demoLocationsNear(RADIUS_M)),
@@ -555,7 +559,11 @@ export default function ExploreScreen() {
           // stay anchored to where "2 km away" is actually true from even
           // while the camera itself is panned off to a focused location.
           ringOrigin={{ lat: centre[1], lng: centre[0] }}
-        />
+        >
+          {territories.length > 0 ? (
+            <TerritoryLayer territories={territories} />
+          ) : null}
+        </TrailMap>
       </View>
 
       {/* Search and filters float over the map */}

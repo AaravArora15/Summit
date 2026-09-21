@@ -468,6 +468,28 @@ export async function respondJoinRequest(requestId: string, accept: boolean): Pr
   return data as boolean;
 }
 
+/** Removes the caller from their group. The leader may only leave if they
+ *  are the sole remaining member — otherwise they must delete_group(). */
+export async function leaveGroup(): Promise<void> {
+  const { error } = await getSupabase().rpc('leave_group');
+  if (error) throw new Error(error.message);
+}
+
+/** Dissolves the group. Leader only. Cascades to members and join requests. */
+export async function deleteGroup(): Promise<void> {
+  const { error } = await getSupabase().rpc('delete_group');
+  if (error) throw new Error(error.message);
+}
+
+/** Removes another member from the group. Leader only, cannot kick self,
+ *  cannot kick the last member (use delete_group instead). */
+export async function kickGroupMember(targetUserId: string): Promise<void> {
+  const { error } = await getSupabase().rpc('kick_group_member', {
+    p_target_user_id: targetUserId,
+  });
+  if (error) throw new Error(error.message);
+}
+
 
 export type SetLocationRow = {
   id: string;
@@ -786,6 +808,21 @@ export const territoryLeaderboard = (territoryId: string, limit = 20) =>
     p_territory_id: territoryId,
     p_limit: limit,
   });
+
+export type TerritoryMapRow = {
+  territory_id: string;
+  name: string;
+  held: number;
+  total: number;
+  captured: boolean;
+  member_lngs: number[];
+  member_lats: number[];
+};
+
+/** Polygon data for the Explore map overlay. Returns each territory's
+ *  member-location coordinates so the client can compute a convex hull
+ *  polygon. Also carries held/total/captured for per-user colouring. */
+export const territoryMapData = () => rpcRows<TerritoryMapRow>('territory_map_data');
 
 /* -------------------------------------------------------------------------- */
 /* Untargeted treks                                                          */

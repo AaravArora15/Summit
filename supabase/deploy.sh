@@ -57,7 +57,12 @@ and this machine has no IPv6 route.
 USAGE
   exit 1
 fi
-export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
+# Only prepend the Homebrew path when that install is actually there. On any
+# other machine the Postgres client has to come from PATH, and pointing at a
+# directory that does not exist would just shadow nothing.
+if [ -d /opt/homebrew/opt/postgresql@17/bin ]; then
+  export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
+fi
 
 run() {
   local file="$1" label="$2"
@@ -122,6 +127,9 @@ run migrations/0024_daily_wildcard.sql "0024 Wildcard: daily location pick, rero
 run migrations/0025_territories.sql "0025 Capture Territory: clusters, capture detection, leaderboard"
 run migrations/0026_wildcard_same_country.sql "0026 Wildcard only picks the caller's own country"
 run migrations/0027_league_rollover_reenroll.sql "0027 league rollover re-enrolls everyone at 0 points"
+run migrations/0028_revert_pioneer_cap.sql "0028 revert the temporary pioneer cap back to 500"
+run migrations/0029_territory_map_data.sql "0029 territory polygons for the Explore overlay"
+run migrations/0030_groups_leave_delete_kick.sql "0030 Groups: leave, delete, kick"
 
 if [ "$MODE" != "--schema-only" ]; then
   echo

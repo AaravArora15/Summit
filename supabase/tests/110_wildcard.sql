@@ -1,4 +1,4 @@
--- Wildcard (0024): my_wildcard() must lazily assign one open, non-secret
+-- Wildcard (0024 + 0026): my_wildcard() must lazily assign one open, non-secret
 -- location per user per day and keep returning the same one on later calls
 -- the same day, withholding name/slug/set until claimed; reroll_wildcard()
 -- must swap it exactly once and refuse a second reroll or a reroll after
@@ -25,6 +25,7 @@ set local search_path = public, extensions;
 do $$
 declare
   v_user        uuid;
+  v_cc          text;
   v_user2       uuid;
   v_user3       uuid;
   v_w1          record;
@@ -43,9 +44,23 @@ begin
   v_user2 := make_user('wildcard-b-' || floor(random() * 1e6)::text || '@t');
   v_user3 := make_user('wildcard-c-' || floor(random() * 1e6)::text || '@t');
 
+  -- 0026 dropped the zero-argument my_wildcard()/reroll_wildcard() outright
+  -- (create or replace cannot change a signature, so the old ones were dropped)
+  -- and made the country a filter on every *new* assignment. With a null country
+  -- the RPC deliberately assigns nothing rather than guessing, because a
+  -- wrong-country pick is worse than no pick. These calls were still the
+  -- zero-arg form, so this whole file was asserting against an empty result set
+  -- and could not have passed since 0026 landed. Derived from a seeded location
+  -- rather than hard-coded so a reseed/rename shows up as the FAIL below.
+  v_cc := (select country_code from locations where slug = 'everestbasecamptrek');
+
+  if v_cc is null then
+    raise notice 'FAIL no country_code for everestbasecamptrek - run seed/0006 first';
+  end if;
+
   -- Case 1: first call assigns a pick.
   perform set_config('request.jwt.claim.sub', v_user::text, true);
-  select * into v_w1 from my_wildcard();
+  select * into v_w1 from my_wildcard(v_cc);
 
   if v_w1.wildcard_id is null then
     raise notice 'FAIL my_wildcard() assigned nothing (ran out of open locations?)';
@@ -98,7 +113,7 @@ begin
   end if;
 
   -- Case 2: same day, same pick — idempotent, not reassigned every call.
-  select * into v_w1_again from my_wildcard();
+  select * into v_w1_again from my_wildcard(v_cc);
   if v_w1_again.wildcard_id = v_w1.wildcard_id and v_w1_again.location_id = v_w1.location_id then
     raise notice 'ok   asking again the same day returns the same pick';
   else
@@ -106,8 +121,8 @@ begin
   end if;
 
   -- Case 3: reroll swaps the location and flips rerolled.
-  perform reroll_wildcard();
-  select * into v_w1 from my_wildcard();
+  perform reroll_wildcard(v_cc);
+  select * into v_w1 from my_wildcard(v_cc);
   if v_w1.rerolled and v_w1.location_id <> v_w1_again.location_id then
     raise notice 'ok   reroll swaps to a different location and flips rerolled';
   else
@@ -116,7 +131,7 @@ begin
 
   -- Case 4: a second reroll the same day is refused.
   begin
-    perform reroll_wildcard();
+    perform reroll_wildcard(v_cc);
     v_reroll_err := null;
   exception when others then
     v_reroll_err := sqlerrm;
@@ -144,7 +159,7 @@ begin
     raise notice 'FAIL wildcard bonus paid xp=% monthly=% (expected 50/100)', v_xp, v_mo;
   end if;
 
-  select * into v_w1 from my_wildcard();
+  select * into v_w1 from my_wildcard(v_cc);
   if v_w1.claimed then
     raise notice 'ok   my_wildcard() reports claimed once the matching claim lands';
   else
@@ -170,12 +185,12 @@ begin
   -- (v_user3) that never rerolls, so this hits the "already claimed" branch
   -- rather than v_user's own already-established "already rerolled" one.
   perform set_config('request.jwt.claim.sub', v_user3::text, true);
-  select * into v_w1 from my_wildcard();
+  select * into v_w1 from my_wildcard(v_cc);
   v_trek := make_trek(v_user3, v_w1.location_id);
   perform claim_location(v_w1.location_id, v_trek);
 
   begin
-    perform reroll_wildcard();
+    perform reroll_wildcard(v_cc);
     v_reroll_err := null;
   exception when others then
     v_reroll_err := sqlerrm;
@@ -188,7 +203,7 @@ begin
 
   -- Case 7: claiming a location that is *not* today's pick pays no bonus.
   perform set_config('request.jwt.claim.sub', v_user2::text, true);
-  select * into v_w2 from my_wildcard();
+  select * into v_w2 from my_wildcard(v_cc);
 
   select l.id into v_other_loc
   from locations l
@@ -202,7 +217,7 @@ begin
   select coalesce(sum(amount), 0) into v_xp
     from points_ledger where claim_id = v_claim.claim_id and source = 'wildcard';
 
-  select * into v_w2 from my_wildcard();
+  select * into v_w2 from my_wildcard(v_cc);
   if v_xp = 0 and not v_w2.claimed then
     raise notice 'ok   claiming somewhere else pays no wildcard bonus and leaves the pick unclaimed';
   else

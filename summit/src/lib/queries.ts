@@ -44,6 +44,7 @@ import {
   DEMO_TERRITORIES,
   DEMO_TERRITORY_LEADERBOARD,
   DEMO_TERRITORY_LOCATIONS,
+  DEMO_TERRITORY_MAP_DATA,
   DEMO_TREKS,
   DEMO_WILDCARD_LOCATION,
 } from '@/lib/demo-data';
@@ -51,9 +52,12 @@ import {
   approveSuggestion,
   claimRunStats,
   createGroup,
+  deleteGroup,
   groupStandings,
   isSupabaseConfigured,
+  kickGroupMember,
   leagueStandings,
+  leaveGroup,
   myBadges,
   myCollection,
   myGroup,
@@ -77,6 +81,7 @@ import {
   setLocations,
   territoryLeaderboard,
   territoryLocations,
+  territoryMapData,
   type BadgeRow,
   type CollectionRow,
   type GroupStandingRow,
@@ -544,6 +549,7 @@ export type GroupView = {
 
 export type GroupStandingView = {
   rank: number;
+  userId: string;
   name: string;
   initials: string;
   tint: string;
@@ -637,6 +643,7 @@ export function useGroupStandings(enabled: boolean): { data: GroupStandingView[]
   const data = query.isSuccess
     ? query.data.map((r: GroupStandingRow) => ({
         rank: r.rank,
+        userId: r.user_id,
         name: r.is_you ? 'You' : r.name,
         initials: r.initials || '?',
         tint: r.is_you ? '#DCC6A1' : tintFor(r.user_id),
@@ -646,6 +653,7 @@ export function useGroupStandings(enabled: boolean): { data: GroupStandingView[]
       }))
     : DEMO_GROUP.standings.map((row) => ({
         rank: row.rank,
+        userId: `demo-${row.rank}`,
         name: row.name,
         initials: row.initials,
         tint: row.tint,
@@ -740,6 +748,30 @@ export function useRespondToJoinRequest() {
   return useMutation({
     mutationFn: ({ requestId, accept }: { requestId: string; accept: boolean }) =>
       respondJoinRequest(requestId, accept),
+    onSuccess: () => invalidateGroups(queryClient),
+  });
+}
+
+export function useLeaveGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: leaveGroup,
+    onSuccess: () => invalidateGroups(queryClient),
+  });
+}
+
+export function useDeleteGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteGroup,
+    onSuccess: () => invalidateGroups(queryClient),
+  });
+}
+
+export function useKickGroupMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (targetUserId: string) => kickGroupMember(targetUserId),
     onSuccess: () => invalidateGroups(queryClient),
   });
 }
@@ -1197,6 +1229,62 @@ export function useTerritoryLeaderboard(territoryId: string): Live<TerritoryLead
 
   return {
     data: mapped ?? (DEMO_TERRITORY_LEADERBOARD[territoryId] ?? []),
+    isDemo: mapped === null,
+    isLoading: enabled && query.isLoading,
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Territory map data — Explore overlay                                       */
+/* -------------------------------------------------------------------------- */
+
+export type TerritoryMapView = {
+  territoryId: string;
+  name: string;
+  held: number;
+  total: number;
+  captured: boolean;
+  memberLngs: number[];
+  memberLats: number[];
+};
+
+/** Polygon data for the Explore map overlay. Not built on useLive() —
+ *  same reason useTerritoryLocations() isn't: this is a lightweight
+ *  query the Explore screen fires on mount, not a user-facing list. */
+export function useTerritoryMapData(): Live<TerritoryMapView[]> {
+  const session = useSession();
+  const enabled = isSupabaseConfigured && session.status === 'signed-in';
+
+  const query = useQuery({
+    queryKey: ['territory-map-data'],
+    queryFn: territoryMapData,
+    enabled,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+
+  const mapped = query.isSuccess
+    ? query.data.map((r) => ({
+        territoryId: r.territory_id,
+        name: r.name,
+        held: r.held,
+        total: r.total,
+        captured: r.captured,
+        memberLngs: r.member_lngs,
+        memberLats: r.member_lats,
+      }))
+    : null;
+
+  return {
+    data: mapped ?? DEMO_TERRITORY_MAP_DATA.map((t) => ({
+      territoryId: t.territory_id,
+      name: t.name,
+      held: t.held,
+      total: t.total,
+      captured: t.captured,
+      memberLngs: t.member_lngs,
+      memberLats: t.member_lats,
+    })),
     isDemo: mapped === null,
     isLoading: enabled && query.isLoading,
   };

@@ -441,6 +441,20 @@ export const DEMO_TERRITORY_LEADERBOARD: Record<
   ],
 };
 
+/** Polygon data for the Explore map overlay. Coordinates match the
+ *  four DEMO_LOCATIONS above — same real Yosemite cluster. */
+export const DEMO_TERRITORY_MAP_DATA = [
+  {
+    territory_id: 'demo-territory-yosemite-falls',
+    name: 'Yosemite Falls Trail area',
+    held: 2,
+    total: 4,
+    captured: false,
+    member_lngs: [-119.5984165, -119.5164635, -119.5164635, -119.5164635],
+    member_lats: [37.7432573, 37.8393004, 37.8393004, 37.8393004],
+  },
+];
+
 /* -------------------------------------------------------------------------- */
 /* League                                                                     */
 /* -------------------------------------------------------------------------- */

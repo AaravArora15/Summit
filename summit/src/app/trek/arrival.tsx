@@ -129,6 +129,7 @@ export default function ArrivalScreen() {
           void queryClient.invalidateQueries({ queryKey: ['secret-spots-near'] });
           void queryClient.invalidateQueries({ queryKey: ['treks'] });
           void queryClient.invalidateQueries({ queryKey: ['group-standings'] });
+          void queryClient.invalidateQueries({ queryKey: ['territory-map-data'] });
         }
       }
     })();

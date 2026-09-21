@@ -25,7 +25,7 @@ import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 
-import { InfoIcon } from '@/components/icons';
+import { CloseIcon, InfoIcon } from '@/components/icons';
 import {
   Avatar,
   Body,
@@ -45,13 +45,16 @@ import {
   ZoneRule,
 } from '@/components/ui';
 import { Skeleton } from '@/components/skeleton';
-import { alertUser } from '@/lib/alert';
+import { alertUser, confirmUser } from '@/lib/alert';
 import { DEMO_GROUP } from '@/lib/demo-data';
 import {
   gapInTreks,
   useCreateGroup,
+  useDeleteGroup,
   useGroupStandings,
+  useKickGroupMember,
   useLeague,
+  useLeaveGroup,
   useMyGroup,
   useMyGroupRequest,
   usePendingJoinRequests,
@@ -465,6 +468,7 @@ function DemoGroupPanel() {
             topPoints={leader}
             row={{
               rank: row.rank,
+              userId: `demo-${row.rank}`,
               name: row.name,
               initials: row.initials,
               tint: row.tint,
@@ -633,7 +637,11 @@ function LiveGroupPanel({ group }: { group: GroupView }) {
   const { data: standings } = useGroupStandings(true);
   const { data: requests } = usePendingJoinRequests(group.isLeader);
   const respond = useRespondToJoinRequest();
+  const leave = useLeaveGroup();
+  const deleteMut = useDeleteGroup();
+  const kick = useKickGroupMember();
   const [decidingId, setDecidingId] = useState<string | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
 
   const topPoints = Math.max(1, standings[0]?.points ?? 1);
   const mine = standings.find((r) => r.isYou);
@@ -653,6 +661,60 @@ function LiveGroupPanel({ group }: { group: GroupView }) {
     } finally {
       setDecidingId(null);
     }
+  }
+
+  function handleLeave() {
+    confirmUser(
+      'Leave this group?',
+      `You will leave "${group.name}" and won't be able to rejoin without a new invite code.`,
+      async () => {
+        setActionBusy(true);
+        try {
+          await leave.mutateAsync();
+        } catch (e) {
+          alertUser('Could not leave', e instanceof Error ? e.message : String(e));
+        } finally {
+          setActionBusy(false);
+        }
+      },
+      { confirmLabel: 'Leave', destructive: true },
+    );
+  }
+
+  function handleDelete() {
+    confirmUser(
+      'Delete this group?',
+      `This will permanently delete "${group.name}" and remove all ${group.memberCount} member${group.memberCount === 1 ? '' : 's'}. This cannot be undone.`,
+      async () => {
+        setActionBusy(true);
+        try {
+          await deleteMut.mutateAsync();
+        } catch (e) {
+          alertUser('Could not delete', e instanceof Error ? e.message : String(e));
+        } finally {
+          setActionBusy(false);
+        }
+      },
+      { confirmLabel: 'Delete', destructive: true },
+    );
+  }
+
+  function handleKick(targetUserId: string, targetName: string) {
+    confirmUser(
+      `Remove ${targetName}?`,
+      `They will be removed from the group and won't be able to rejoin without a new invite code.`,
+      async () => {
+        setActionBusy(true);
+        try {
+          await kick.mutateAsync(targetUserId);
+        } catch (e) {
+          alertUser('Could not remove member', e instanceof Error ? e.message : String(e));
+        } finally {
+          setActionBusy(false);
+        }
+      },
+      { confirmLabel: 'Remove', destructive: true },
+    );
   }
 
   return (
@@ -719,7 +781,13 @@ function LiveGroupPanel({ group }: { group: GroupView }) {
           <Label>{windowLabel()}</Label>
         </View>
         {standings.map((row) => (
-          <GroupStandingRow key={row.rank} row={row} topPoints={topPoints} />
+          <GroupStandingRow
+            key={row.rank}
+            row={row}
+            topPoints={topPoints}
+            canKick={group.isLeader}
+            onKick={(userId, name) => handleKick(userId, name)}
+          />
         ))}
       </View>
 
@@ -742,6 +810,27 @@ function LiveGroupPanel({ group }: { group: GroupView }) {
           </View>
         </Card>
       ) : null}
+
+      {/* Leave / Delete controls */}
+      <View style={[styles.row, { marginTop: 4 }]}>
+        {group.isLeader ? (
+          <Button
+            label="Delete group"
+            variant="ghost"
+            small
+            loading={actionBusy}
+            onPress={handleDelete}
+          />
+        ) : (
+          <Button
+            label="Leave group"
+            variant="ghost"
+            small
+            loading={actionBusy}
+            onPress={handleLeave}
+          />
+        )}
+      </View>
     </>
   );
 }
@@ -753,9 +842,13 @@ function LiveGroupPanel({ group }: { group: GroupView }) {
 function GroupStandingRow({
   row,
   topPoints,
+  canKick,
+  onKick,
 }: {
   row: GroupStandingView;
   topPoints: number;
+  canKick?: boolean;
+  onKick?: (userId: string, name: string) => void;
 }) {
   const you = Boolean(row.isYou);
   return (
@@ -780,6 +873,14 @@ function GroupStandingRow({
           <Data style={{ fontSize: 13, color: you ? colour.sand : colour.ink }}>
             {row.points.toLocaleString()}
           </Data>
+          {canKick && !you ? (
+            <IconButton
+              label={`Remove ${row.name}`}
+              onPress={() => onKick?.(row.userId, row.name)}
+            >
+              <CloseIcon size={12} color={colour.dim} />
+            </IconButton>
+          ) : null}
         </View>
         <ProgressBar
           value={row.points / topPoints}
