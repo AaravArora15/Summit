@@ -286,8 +286,8 @@ export default function LiveTrekScreen() {
           variant="ghost"
           full
           small
-          onPress={() => {
-            useTrek.getState().end();
+          onPress={async () => {
+            await useTrek.getState().end();
             useTrek.getState().reset();
             router.back();
           }}

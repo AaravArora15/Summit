@@ -113,13 +113,22 @@ export default function ArrivalScreen() {
       if (!cancelled) {
         setOutcome(result);
         setBusy(false);
-        // A claimed Wildcard's reveal (name/rarity/glyph) lives behind
-        // my_wildcard() itself — see <Outcome>'s own useWildcard() call —
-        // and that query may have been cached from before this claim
-        // landed, so it needs telling to go fetch the now-revealed row
-        // rather than showing whatever it last knew.
-        if (result.status === 'claimed' && targetIsWildcard) {
+        if (result.status === 'claimed') {
+          // Invalidate all claim-dependent queries so the user sees updated
+          // data when they navigate back to the app. The wildcard query is
+          // included here for the Wildcard reveal case.
           void queryClient.invalidateQueries({ queryKey: ['wildcard'] });
+          void queryClient.invalidateQueries({ queryKey: ['profile'] });
+          void queryClient.invalidateQueries({ queryKey: ['collection'] });
+          void queryClient.invalidateQueries({ queryKey: ['set-progress'] });
+          void queryClient.invalidateQueries({ queryKey: ['recent-badges'] });
+          void queryClient.invalidateQueries({ queryKey: ['league'] });
+          void queryClient.invalidateQueries({ queryKey: ['standings'] });
+          void queryClient.invalidateQueries({ queryKey: ['badges'] });
+          void queryClient.invalidateQueries({ queryKey: ['locations-near'] });
+          void queryClient.invalidateQueries({ queryKey: ['secret-spots-near'] });
+          void queryClient.invalidateQueries({ queryKey: ['treks'] });
+          void queryClient.invalidateQueries({ queryKey: ['group-standings'] });
         }
       }
     })();

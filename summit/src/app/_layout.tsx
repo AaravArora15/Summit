@@ -5,6 +5,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { View, Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -12,6 +13,7 @@ import { useSession } from '@/features/auth/session';
 import { bootstrapInactivityNudge } from '@/features/trek/inactivity-nudge';
 import { initTrekStore, isTrekStoreAvailable } from '@/features/trek/recorder';
 import { syncPendingTreks } from '@/features/trek/sync';
+import { isSupabaseConfigured } from '@/lib/supabase';
 import { configurePurchases, syncPurchasesIdentity } from '@/lib/purchases';
 import { colour } from '@/theme/tokens';
 
@@ -76,6 +78,21 @@ export default function RootLayout() {
   }, []);
 
   if (!fontsLoaded) return null;
+
+  // In production builds, fail clearly rather than silently presenting demo
+  // data. Demo mode remains available in development for design review.
+  if (!__DEV__ && !isSupabaseConfigured) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colour.bg, padding: 24 }}>
+        <Text style={{ fontSize: 18, fontWeight: '600', color: colour.forest, marginBottom: 12 }}>
+          Configuration Error
+        </Text>
+        <Text style={{ fontSize: 14, color: colour.slate, textAlign: 'center', lineHeight: 20 }}>
+          Summit cannot start because the backend is not configured. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in your environment.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

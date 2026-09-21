@@ -87,23 +87,42 @@ async function syncTrekInner(args: {
   const integrity = await deviceIntegrity();
 
   try {
-    // 1. The trek itself.
-    const { data: trek, error: trekError } = await supabase
+    // 1. The trek itself. Check for an existing row first: if the network
+    //    failed after the server inserted the trek but before the response
+    //    reached the client, syncPendingTreks() retries with the same local
+    //    data. Without this check a duplicate trek row is created, which can
+    //    lead to duplicate league points for free walks. The treks table has
+    //    no unique constraint, so the guard is here instead.
+    const startedAtISO = new Date(startedAt).toISOString();
+    const { data: existing } = await supabase
       .from('treks')
-      .insert({
-        user_id: auth.user.id,
-        started_at: new Date(startedAt).toISOString(),
-        ended_at: new Date(endedAt).toISOString(),
-        distance_m: Math.round(trackDistanceM(points)),
-        moving_time_s: movingTimeSeconds(points),
-        status: 'submitted',
-        device_integrity: integrity,
-        with_partner: args.withPartner ?? false,
-      })
       .select('id')
-      .single();
+      .eq('user_id', auth.user.id)
+      .eq('started_at', startedAtISO)
+      .maybeSingle();
 
-    if (trekError) return { status: 'deferred', reason: trekError.message };
+    let trek: { id: string };
+    if (existing) {
+      trek = existing;
+    } else {
+      const { data: inserted, error: trekError } = await supabase
+        .from('treks')
+        .insert({
+          user_id: auth.user.id,
+          started_at: startedAtISO,
+          ended_at: new Date(endedAt).toISOString(),
+          distance_m: Math.round(trackDistanceM(points)),
+          moving_time_s: movingTimeSeconds(points),
+          status: 'submitted',
+          device_integrity: integrity,
+          with_partner: args.withPartner ?? false,
+        })
+        .select('id')
+        .single();
+
+      if (trekError) return { status: 'deferred', reason: trekError.message };
+      trek = inserted!;
+    }
 
     // 2. The track. Chunked because a long walk is thousands of rows and a
     //    single oversized request is the thing most likely to fail on a weak

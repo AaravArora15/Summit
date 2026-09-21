@@ -6,17 +6,18 @@
  * there is a secret spot on a route you already walk. Reasons to leave the
  * house, ranked by how little they ask.
  *
- * The league standing, the closest set and the explorer level are live. The
- * nearby secret-spot count is not: it has no table yet, and is a scheduling
- * system rather than a query over one.
+ * The league standing, the closest set, the explorer level, and the
+ * nearby secret-spot count are all live.
  *
  * Today's Wildcard sits above all three: it is the only one of the four that
- * answers "where do I go today" with an actual single place, rather than a
- * standing or a percentage — see useWildcard() (queries.ts) and
+ * answers "where do I go today" with an actual single place, rather than
+ * a standing or a percentage — see useWildcard() (queries.ts) and
  * my_wildcard() (0024).
  */
+import { useQuery } from '@tanstack/react-query';
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -36,7 +37,9 @@ import {
 import { Skeleton } from '@/components/skeleton';
 import { beginTrekSession } from '@/features/trek/start';
 import { useTrek } from '@/features/trek/store';
+import { useSession } from '@/features/auth/session';
 import { alertUser } from '@/lib/alert';
+import { isSupabaseConfigured, secretSpotsNear } from '@/lib/supabase';
 import { useLeague, useProfile, useRerollWildcard, useSetProgress, useWildcard } from '@/lib/queries';
 import { colour, font, rarityColour, size, space } from '@/theme/tokens';
 
@@ -96,6 +99,47 @@ export default function HomeScreen() {
   const { data: wildcard, isLoading: wildcardLoading } = useWildcard();
   const reroll = useRerollWildcard();
   const [startingHunt, setStartingHunt] = useState(false);
+  const session = useSession();
+  const [userCentre, setUserCentre] = useState<[number, number] | null>(null);
+
+  useEffect(() => {
+    if (session.status !== 'signed-in') return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const existing = await Location.getForegroundPermissionsAsync();
+        const granted = existing.granted
+          ? existing
+          : await Location.requestForegroundPermissionsAsync();
+        if (!granted.granted || cancelled) return;
+        const fix = await Promise.race([
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 8_000)),
+        ]);
+        if (cancelled) return;
+        if (fix) {
+          setUserCentre([fix.coords.longitude, fix.coords.latitude]);
+        } else {
+          const last = await Location.getLastKnownPositionAsync({ maxAge: 300_000 });
+          if (last && !cancelled) {
+            setUserCentre([last.coords.longitude, last.coords.latitude]);
+          }
+        }
+      } catch {
+        // Location unavailable — card stays hidden rather than showing stale data.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [session.status]);
+
+  const { data: secretFences } = useQuery({
+    queryKey: ['secret-spot-count', userCentre],
+    queryFn: () => secretSpotsNear(userCentre![1], userCentre![0], 20000),
+    enabled: isSupabaseConfigured && session.status === 'signed-in' && userCentre !== null,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  const secretCount = secretFences?.length ?? 0;
 
   async function handleReroll() {
     if (reroll.isPending) return;
@@ -337,11 +381,47 @@ export default function HomeScreen() {
 
       {/* Two reasons side by side */}
       <View style={styles.pair}>
-        <Card variant="sandy" style={{ flex: 1, minWidth: 0 }}>
-          <Label>Secret spot</Label>
-          <H2 style={{ marginTop: 3, fontSize: 16 }}>1 unfound nearby</H2>
-          <Body style={{ marginTop: 4 }}>On the Southern Ridges route you already walk.</Body>
-        </Card>
+        {session.status === 'signed-in' && userCentre !== null ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={secretCount > 0 ? `${secretCount} secret spot${secretCount === 1 ? '' : 's'} nearby. Open Explore.` : 'No secret spots nearby'}
+            onPress={() => router.push('/(tabs)/explore')}
+            style={{ flex: 1, minWidth: 0 }}>
+            {({ pressed }) => (
+              <Card variant="sandy" style={[{ flex: 1, minWidth: 0 }, pressed && { opacity: 0.85 }]}>
+                <Label>Secret spot</Label>
+                {secretFences === undefined ? (
+                  <>
+                    <View style={{ marginTop: 3 }}>
+                      <Skeleton height={17} width={120} radius={4} />
+                    </View>
+                    <View style={{ marginTop: 6 }}>
+                      <Skeleton height={9} width="100%" radius={4} />
+                    </View>
+                  </>
+                ) : secretCount > 0 ? (
+                  <>
+                    <H2 style={{ marginTop: 3, fontSize: 16 }}>
+                      {secretCount} unfound{secretCount === 1 ? '' : ''} nearby
+                    </H2>
+                    <Body style={{ marginTop: 4 }}>Tap to start hunting on the map.</Body>
+                  </>
+                ) : (
+                  <>
+                    <H2 style={{ marginTop: 3, fontSize: 16 }}>None nearby yet</H2>
+                    <Body style={{ marginTop: 4 }}>Keep walking — secret spots appear as you explore.</Body>
+                  </>
+                )}
+              </Card>
+            )}
+          </Pressable>
+        ) : (
+          <Card variant="sandy" style={{ flex: 1, minWidth: 0 }}>
+            <Label>Secret spot</Label>
+            <H2 style={{ marginTop: 3, fontSize: 16 }}>Undiscovered</H2>
+            <Body style={{ marginTop: 4 }}>Sign in and enable location to see nearby spots.</Body>
+          </Card>
+        )}
 
         <Pressable
           accessibilityRole="button"

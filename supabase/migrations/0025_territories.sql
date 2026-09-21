@@ -375,9 +375,11 @@ begin
   end if;
 
   insert into points_ledger (user_id, trek_id, claim_id, source, system, amount)
-  values (new.user_id, new.trek_id, new.id, 'badge', 'xp', round(c_xp_badge * v_mult_xp)::integer);
+  values (new.user_id, new.trek_id, new.id, 'badge', 'xp', round(c_xp_badge * v_mult_xp)::integer)
+  on conflict do nothing;
   insert into points_ledger (user_id, trek_id, claim_id, source, system, amount)
-  values (new.user_id, new.trek_id, new.id, 'badge', 'monthly', round(c_mo_badge * v_mult_mo)::integer);
+  values (new.user_id, new.trek_id, new.id, 'badge', 'monthly', round(c_mo_badge * v_mult_mo)::integer)
+  on conflict do nothing;
 
   if v_location.set_id is not null then
     v_is_new_route := not exists (
@@ -388,9 +390,11 @@ begin
 
     if v_is_new_route then
       insert into points_ledger (user_id, trek_id, claim_id, source, system, amount)
-      values (new.user_id, new.trek_id, new.id, 'new_route', 'xp', round(c_xp_new_route * v_mult_xp)::integer);
+      values (new.user_id, new.trek_id, new.id, 'new_route', 'xp', round(c_xp_new_route * v_mult_xp)::integer)
+      on conflict do nothing;
       insert into points_ledger (user_id, trek_id, claim_id, source, system, amount)
-      values (new.user_id, new.trek_id, new.id, 'new_route', 'monthly', round(c_mo_new_route * v_mult_mo)::integer);
+      values (new.user_id, new.trek_id, new.id, 'new_route', 'monthly', round(c_mo_new_route * v_mult_mo)::integer)
+      on conflict do nothing;
     end if;
 
     select count(*) into v_set_total
@@ -403,27 +407,33 @@ begin
 
     if v_set_total > 0 and v_set_held >= v_set_total then
       insert into points_ledger (user_id, trek_id, claim_id, source, system, amount)
-      values (new.user_id, new.trek_id, new.id, 'set_complete', 'xp', c_xp_set_complete);
+      values (new.user_id, new.trek_id, new.id, 'set_complete', 'xp', c_xp_set_complete)
+      on conflict do nothing;
       insert into points_ledger (user_id, trek_id, claim_id, source, system, amount)
-      values (new.user_id, new.trek_id, new.id, 'set_complete', 'monthly', c_mo_set_complete);
+      values (new.user_id, new.trek_id, new.id, 'set_complete', 'monthly', c_mo_set_complete)
+      on conflict do nothing;
     end if;
   end if;
 
   insert into points_ledger (user_id, trek_id, claim_id, source, system, amount)
-  values (new.user_id, new.trek_id, new.id, 'difficulty', 'xp', c_xp_difficulty[v_location.difficulty]);
+  values (new.user_id, new.trek_id, new.id, 'difficulty', 'xp', c_xp_difficulty[v_location.difficulty])
+  on conflict do nothing;
   insert into points_ledger (user_id, trek_id, claim_id, source, system, amount)
-  values (new.user_id, new.trek_id, new.id, 'difficulty', 'monthly', c_mo_difficulty[v_location.difficulty]);
+  values (new.user_id, new.trek_id, new.id, 'difficulty', 'monthly', c_mo_difficulty[v_location.difficulty])
+  on conflict do nothing;
 
   if v_location.is_secret then
     insert into points_ledger (user_id, trek_id, claim_id, source, system, amount)
-    values (new.user_id, new.trek_id, new.id, 'secret_spot', 'monthly', c_mo_secret_spot);
+    values (new.user_id, new.trek_id, new.id, 'secret_spot', 'monthly', c_mo_secret_spot)
+    on conflict do nothing;
   end if;
 
   if v_location.avg_time_min is not null
      and v_trek.moving_time_s is not null
      and v_trek.moving_time_s < v_location.avg_time_min * 60 then
     insert into points_ledger (user_id, trek_id, claim_id, source, system, amount)
-    values (new.user_id, new.trek_id, new.id, 'beat_average', 'monthly', c_mo_beat_average);
+    values (new.user_id, new.trek_id, new.id, 'beat_average', 'monthly', c_mo_beat_average)
+    on conflict do nothing;
   end if;
 
   -- Wildcard: this exact location, still within 24 hours of being picked,
@@ -440,9 +450,11 @@ begin
 
   if found then
     insert into points_ledger (user_id, trek_id, claim_id, source, system, amount)
-    values (new.user_id, new.trek_id, new.id, 'wildcard', 'xp', c_xp_wildcard);
+    values (new.user_id, new.trek_id, new.id, 'wildcard', 'xp', c_xp_wildcard)
+    on conflict do nothing;
     insert into points_ledger (user_id, trek_id, claim_id, source, system, amount)
-    values (new.user_id, new.trek_id, new.id, 'wildcard', 'monthly', c_mo_wildcard);
+    values (new.user_id, new.trek_id, new.id, 'wildcard', 'monthly', c_mo_wildcard)
+    on conflict do nothing;
 
     update daily_wildcards set claim_id = new.id where id = v_wildcard.id;
   end if;
@@ -478,9 +490,11 @@ begin
       );
 
       insert into points_ledger (user_id, trek_id, claim_id, source, system, amount)
-      values (new.user_id, new.trek_id, new.id, 'territory_capture', 'xp', c_xp_territory);
+      values (new.user_id, new.trek_id, new.id, 'territory_capture', 'xp', c_xp_territory)
+      on conflict do nothing;
       insert into points_ledger (user_id, trek_id, claim_id, source, system, amount)
-      values (new.user_id, new.trek_id, new.id, 'territory_capture', 'monthly', c_mo_territory);
+      values (new.user_id, new.trek_id, new.id, 'territory_capture', 'monthly', c_mo_territory)
+      on conflict do nothing;
     end if;
   end if;
 
